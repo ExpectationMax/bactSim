@@ -5,6 +5,8 @@
 #include "Environment.h"
 #include <exception>
 #include "easylogging++.h"
+#include <time.h>
+#include "progress.h"
 
 template <typename RT>
 array Environment<RT>::getLaplacian(unsigned dims) {
@@ -60,41 +62,47 @@ Environment<RT>::Environment(EnvironmentSettings<RT> settings) {
     // Initialize arrays and fill with initial concentrations
     switch(internal_dimensions.size()) {
         case 2:
-            this->densities = array(internal_dimensions[0], internal_dimensions[1], settings.dataType);
-            this->density_changes = constant(0.0, internal_dimensions[0], internal_dimensions[1], settings.dataType);
-            this->diffusion_filters = constant(0.0, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
+            densities = array(internal_dimensions[0], internal_dimensions[1], settings.dataType);
+            density_changes = constant(0.0, internal_dimensions[0], internal_dimensions[1], settings.dataType);
+            diffusion_filters = constant(0.0, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
             // Initialize ligand concentrations and diffusion filters
             for(size_t i = 0; i < settings.ligands.size(); i++) {
-                this->densities(span, i) = settings.ligands[i].initialConcentration;
-                this->diffusion_filters(span, i) = this->getLaplacian(1);
-                this->diffusion_filters(span, i) *= -settings.ligands[i].diffusionCoefficient;
+                densities(span, i) = settings.ligands[i].initialConcentration;
+                diffusion_filters(span, i) = Environment<RT>::getLaplacian(1);
+                diffusion_filters(span, i) *= settings.ligands[i].diffusionCoefficient;
             }
             break;
         case 3:
-            this->densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
-            this->density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
-            this->diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
+            densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
+            density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
+            diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
             for(size_t i = 0; i < settings.ligands.size(); i++) {
-                this->densities(span, span, i) = settings.ligands[i].initialConcentration;
-                this->diffusion_filters(span, span, i) = this->getLaplacian(2);
-                this->diffusion_filters(span, span, i) *= -settings.ligands[i].diffusionCoefficient;
+                densities(span, span, i) = settings.ligands[i].initialConcentration;
+                diffusion_filters(span, span, i) = Environment<RT>::getLaplacian(2);
+                diffusion_filters(span, span, i) *= settings.ligands[i].diffusionCoefficient;
             }
             break;
         case 4:
-            this->densities = array(internal_dimensions[0], internal_dimensions[1],
+            densities = array(internal_dimensions[0], internal_dimensions[1],
                                     internal_dimensions[2], internal_dimensions[3]);
-            this->density_changes = constant(0.0, internal_dimensions[0], internal_dimensions[1],
+            density_changes = constant(0.0, internal_dimensions[0], internal_dimensions[1],
                                     internal_dimensions[2], internal_dimensions[3]);
             this->diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
             for(size_t i = 0; i < settings.ligands.size(); i++) {
-                this->densities(span, span, span, i) = settings.ligands[i].initialConcentration;
-                this->diffusion_filters(span, span, span, i) = this->getLaplacian(3);
-                this->diffusion_filters(span, span, span, i) *= -settings.ligands[i].diffusionCoefficient;
+                densities(span, span, span, i) = settings.ligands[i].initialConcentration;
+                diffusion_filters(span, span, span, i) = Environment<RT>::getLaplacian(3);
+                diffusion_filters(span, span, span, i) *= settings.ligands[i].diffusionCoefficient;
             }
             break;
         default:
             throw new exception("Unsupported number of dimensions for grid creation.");
     }
+    // Setup other properties
+    this->dt = settings.dt;
+    this->resolution = settings.resolution;
+    this->visualizationWin = settings.win;
+    this->boundaryCondition = settings.boundaryCondition;
+    this->applyBoundaryCondition = std::bind(Environment<RT>::_apply_neumann_2d, this->densities);
 }
 template <typename RT>
 void Environment<RT>::printInternals() {
@@ -119,24 +127,54 @@ void Environment<RT>::load_densitydistribution(unsigned int ligand, RT *) {
 
 template <typename RT>
 void Environment<RT>::test() {
-    this->densities(4,4,span) = 255;
+    const unsigned Lx = this->densities.dims(0), nx = Lx + 1;
+    const unsigned Ly = this->densities.dims(1), ny = Ly + 1;
+
+    unsigned io = (unsigned)floor(Lx  / 5.0f),
+            jo = (unsigned)floor(Ly / 5.0f),
+            k = 20;
+    array x = tile(moddims(seq(nx),nx,1), 1,ny);
+    array y = tile(moddims(seq(ny),1,ny), nx,1);
+
+    // Initial condition
+    this->densities = 0.01f * exp((-((x - io) * (x - io) + (y - jo) * (y - jo))) / (k * k));
+
+    this->simulate(20.0);
 }
 
 template <typename RT>
 void Environment<RT>::simulate(double advanceTime) {
-    while()
+
+    RT normalizer = max<RT>(this->densities);
+
+    timer t = timer::start();
+    unsigned iter = 0;
+    while (progress(iter, t, advanceTime)) {
+        this->simulateTimeStep();
+        if(this->visualizationWin != NULL){
+            this->visualizationWin->image(this->densities/normalizer);
+        }
+        iter++;
+    }
 }
 
 template <typename RT>
-void Environment::simulateTimeStep() {
+void Environment<RT>::simulateTimeStep() {
     this->applyBoundaryCondition();
     this->density_changes = convolve(this->densities, this->diffusion_filters);
-    this->densities += this->density_changes;
+    this->densities += this->density_changes*this->dt;
 }
 
 template <typename RT>
-void Environment<RT>::applyBoundaryCondition() {
-    //stub
+void Environment<RT>::_apply_neumann_2d(array input) {
+    // X direction
+    input(0, span, span) = input(1, span, span);
+    input(end, span, span) = input(end-1, span, span);
+
+    // Y direction
+    input(span, 0, span) = input(span, 1, span);
+    input(span, end, span) = input(span, end-1, span);
+
 }
 
 

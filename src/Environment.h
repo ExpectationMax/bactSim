@@ -18,20 +18,17 @@ template <typename RealType>
 struct Ligand {
     std::string name;
     RealType initialConcentration;
-    RealType uptakeRate;
-    RealType productionRate;
+    RealType globalProductionRate;
+    RealType globalDegradationRate;
+    RealType coliUptakeRate;
+    RealType coliProductionRate;
     RealType diffusionCoefficient;
 };
 
-enum BorderCondition {
+enum BoundaryCondition {
     BC_PERIODIC,
     BC_DIRICHELET,
     BC_NEUMANN
-};
-
-class BorderSetting {
-    BorderCondition borderCondition;
-    void applyBorderCondition(af::array);
 };
 
 template <typename RealType>
@@ -44,8 +41,11 @@ struct EnvironmentSettings {
     std::vector<Ligand<RealType>> ligands;
 
     //Simulation parameters
-    double dt;
+    RealType dt;
     af_dtype dataType;
+    BoundaryCondition boundaryCondition;
+    // Visualization parameters
+    Window *win = NULL;
 };
 
 template <typename RealType>
@@ -53,16 +53,29 @@ class Environment {
     // Only allow floating point types
     static_assert(std::is_floating_point<RealType>::value,
                   "class Environment can only be instantiated with floating point types");
+
+    // Internal arrays
     af::array densities;
     af::array density_changes;
     af::array diffusion_filters;
-    af::array production_rates;
-    af::array uptake_rates;
+    af::array globalProductionRates;
+
+    //
     std::vector<Ligand<RealType>> ligands;
+
+    // Simultation Parameters
+    RealType dt;
+    BoundaryCondition boundaryCondition;
+    double resolution;
+
+    Window *visualizationWin;
+
+    // Boundary condition functions;
+    static void _apply_neumann_2d(array input);
 
 public:
     Environment(EnvironmentSettings<RealType> settings);
-    array getLaplacian(unsigned int dims);
+    static array getLaplacian(unsigned int dims);
     std::vector<Ligand<RealType>> getLigands();
     std::vector<dim_t> getSize();
     void printInternals();
@@ -70,7 +83,7 @@ public:
     void simulateTimeStep();
     void test();
     void load_densitydistribution(unsigned int ligand, RealType *);
-    void applyBoundaryCondition();
+    std::function<void(void)> applyBoundaryCondition;
 };
 
 #endif //PROJECT_NAME_ENVIRONMENT_H

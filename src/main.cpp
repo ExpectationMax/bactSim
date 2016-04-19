@@ -22,15 +22,17 @@ int main(int argc, char** argv)
 
     EnvironmentSettings<GPU_DATATYPE> ESettings;
     ESettings.resolution = 1;
-    ESettings.dimensions = std::vector<double> {5, 5};
-    Ligand<GPU_DATATYPE> ligand = {"Testligand", 0.0, 0.0, 0.0, 5.0};
+    ESettings.dimensions = std::vector<double> {510, 510};
+    Ligand<GPU_DATATYPE> ligand = {"Testligand", 20.0, 0.0, 0.0, 0.0, 0.0, 10.0};
     ESettings.ligands = std::vector<Ligand<GPU_DATATYPE>> {ligand};
-    ESettings.dt = 0.0001;
+    ESettings.dt = 0.01;
     ESettings.dataType = f32;
+    ESettings.win = new Window(512, 512,"Simple Diffusion simulation");
+    ESettings.win->setColorMap(AF_COLORMAP_MOOD);
 
     Environment<GPU_DATATYPE> simEnv(ESettings);
+    //simEnv.printInternals();
 
-    simEnv.printInternals();
     simEnv.test();
 
     return 0;

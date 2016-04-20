@@ -1,7 +1,7 @@
 #include "arrayfire.h"
 #include "easylogging++.h"
 
-#include "Environment.h"
+#include "Environments/Environment2D.h"
 
 #define GPU_DATATYPE float
 
@@ -20,17 +20,18 @@ int main(int argc, char** argv)
     printf("Toolkit: %s\n", t_device_toolkit);
     printf("Compute version: %s\n", t_device_compute);
 
-    EnvironmentSettings<GPU_DATATYPE> ESettings;
+    EnvironmentSettings ESettings;
     ESettings.resolution = 1;
-    ESettings.dimensions = std::vector<double> {510, 510};
-    Ligand<GPU_DATATYPE> ligand = {"Testligand", 20.0, 0.0, 0.0, 0.0, 0.0, 10.0};
-    ESettings.ligands = std::vector<Ligand<GPU_DATATYPE>> {ligand};
-    ESettings.dt = 0.01;
+    ESettings.dimensions = std::vector<double> {80, 80};
+    Ligand ligand1 = {"Testligand1", 20.0, 0.0, 0.0, 0.0, 0.0, 10.0};
+    Ligand ligand2 = {"Testligand2", 20.0, 0.0, 0.0, 0.0, 0.0, 10.0};
+    ESettings.ligands = std::vector<Ligand> {ligand1, ligand1};
+    ESettings.dt = 0.001;
     ESettings.dataType = f32;
-    ESettings.win = new Window(512, 512,"Simple Diffusion simulation");
-    ESettings.win->setColorMap(AF_COLORMAP_MOOD);
-
-    Environment<GPU_DATATYPE> simEnv(ESettings);
+    Window mywindow(1024, 1024,"Simple Diffusion simulation");
+    mywindow.setColorMap(AF_COLORMAP_MOOD);
+    ESettings.win = &mywindow;
+    Environment2D simEnv(ESettings);
     //simEnv.printInternals();
 
     simEnv.test();

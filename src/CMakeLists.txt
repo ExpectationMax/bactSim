@@ -26,7 +26,8 @@ FIND_PACKAGE(ArrayFire REQUIRED)
 INCLUDE_DIRECTORIES(${ArrayFire_INCLUDE_DIRS})
 
 # Get a list of all of the source files in the directory:
-FILE(GLOB SOURCE "*.cpp")
+#FILE(GLOB SOURCE "Environments/*.cpp")
+set(SOURCE Environments/Environment2D.cpp Environments/Environment.cpp)
 
 # There are several ways of compiling source code in CMake. In most cases you
 # specify the source files to an ADD_EXCUTABLE call. Because we intend to
@@ -35,7 +36,7 @@ FILE(GLOB SOURCE "*.cpp")
 # Here we take a different approach to compilation. We build all of the source
 # files into a CMake object library and then link this library against the
 # different ArrayFire backends.
-ADD_LIBRARY(AFDIFF_CORE OBJECT ${SOURCE})
+ADD_LIBRARY(AFDIFF_CORE OBJECT main.cpp ${SOURCE})
 
 if(APPLE)
     SET(CMAKE_SKIP_BUILD_RPATH  FALSE)

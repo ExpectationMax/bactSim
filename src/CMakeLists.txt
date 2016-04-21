@@ -27,6 +27,12 @@ INCLUDE_DIRECTORIES(${ArrayFire_INCLUDE_DIRS})
 
 # Get a list of all of the source files in the directory:
 #FILE(GLOB SOURCE "Environments/*.cpp")
+set(NO_GRAPHICS FALSE CACHE BOOL "Do not compile with visualization")
+
+if(NO_GRAPHICS)
+    add_definitions(-DNO_GRAPHICS)
+endif()
+
 set(SOURCE Environments/Environment2D.cpp Environments/Environment.cpp)
 
 # There are several ways of compiling source code in CMake. In most cases you

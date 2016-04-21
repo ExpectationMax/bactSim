@@ -9,8 +9,7 @@
 #define BORDER_SIZE 1
 #define LAPLACIAN_SIZE 1 + 2 * BORDER_SIZE
 
-
-
+#include <functional>
 #include <array>
 #include <arrayfire.h>
 #include <type_traits>
@@ -58,7 +57,9 @@ struct EnvironmentSettings {
     ConvolutionType convolutionType = CT_SERIAL;
 
     // Visualization parameters
+#ifndef NO_GRAPHICS
     Window *win = NULL;
+#endif
 };
 
 class Environment {
@@ -75,10 +76,10 @@ protected:
     BoundaryCondition boundaryCondition;
     double resolution;
     std::vector<dim_t> internal_dimensions;
-
+#ifndef NO_GRAPHICS
     Window *visualizationWin;
     bool WindowInitialized = false;
-
+#endif
     std::function<void(void)> applyBoundaryCondition;
     std::function<void(void)> calculateTimeStep;
     void simulateTimeStep(void);
@@ -90,7 +91,9 @@ public:
     std::vector<Ligand> getLigands();
     void printInternals();
     void simulate(double advanceTime);
+#ifndef NO_GRAPHICS
     void visualize(double normalizer);
+#endif
     virtual dim4 getSize() = 0;
     //virtual void simulateTimeStep() = 0;
     virtual array getDensity(unsigned int ligand) = 0;

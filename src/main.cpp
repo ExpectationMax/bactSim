@@ -3,8 +3,6 @@
 
 #include "Environments/Environment2D.h"
 
-#define GPU_DATATYPE float
-
 INITIALIZE_EASYLOGGINGPP
 
 int main(int argc, char** argv)
@@ -31,9 +29,11 @@ int main(int argc, char** argv)
     ESettings.dt = 0.01;
     ESettings.dataType = f32;
     ESettings.convolutionType = CT_SERIAL;
+#ifndef NO_GRAPHICS
     Window mywindow(1024, 1024,"Simple Diffusion simulation");
     mywindow.setColorMap(AF_COLORMAP_HEAT);
     ESettings.win = &mywindow;
+#endif
     Environment2D simEnv(ESettings);
     //simEnv.printInternals();
 

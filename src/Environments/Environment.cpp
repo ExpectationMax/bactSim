@@ -15,8 +15,9 @@ Environment::Environment(EnvironmentSettings settings) {
     this->resolution = settings.resolution;
     this->boundaryCondition = settings.boundaryCondition;
 
+#ifndef NO_GRAPHICS
     this->visualizationWin = settings.win;
-
+#endif
 
     std::vector<dim_t> internalDim(settings.dimensions.size() + 1);
 
@@ -48,13 +49,15 @@ void Environment::simulate(double advanceTime) {
     double normalizer = max<double>(this->densities);
     while (progress(iter, t, advanceTime)) {
         this->simulateTimeStep();
+#ifndef NO_GRAPHICS
         if(this->visualizationWin != NULL && (iter % 10) == 0){
             this->visualize(normalizer);
         }
+#endif
         iter++;
     }
 }
-
+#ifndef NO_GRAPHICS
 void Environment::visualize(double normalizer) {
     unsigned int numLigands = this->ligands.size();
     unsigned int rows = ceil(numLigands / 2);
@@ -84,6 +87,7 @@ void Environment::visualize(double normalizer) {
 
     this->visualizationWin->show();
 }
+#endif
 
 void Environment::simulateTimeStep(void) {
     this->applyBoundaryCondition();

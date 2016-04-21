@@ -82,11 +82,12 @@ void Environment::visualize(double normalizer) {
     else
         this->visualizationWin->image(this->densities/normalizer, this->ligands[0].name.c_str());
 
-
-
     this->visualizationWin->show();
+}
 
-
+void Environment::simulateTimeStep(void) {
+    this->applyBoundaryCondition();
+    this->calculateTimeStep();
 }
 
 

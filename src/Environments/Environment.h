@@ -38,6 +38,11 @@ struct BoundaryCondition {
     double xneg, xpos, yneg, ypos, zneg, zpos = 0;
 };
 
+enum ConvolutionType {
+    CT_AFBATCH,
+    CT_SERIAL
+};
+
 struct EnvironmentSettings {
     // Definition of Size
     double resolution;
@@ -50,6 +55,8 @@ struct EnvironmentSettings {
     double dt;
     af_dtype dataType;
     BoundaryCondition boundaryCondition;
+    ConvolutionType convolutionType = CT_SERIAL;
+
     // Visualization parameters
     Window *win = NULL;
 };
@@ -58,7 +65,6 @@ class Environment {
 protected:
     // Internal arrays
     af::array densities;
-    af::array density_changes;
     af::array diffusion_filters;
     af::array globalProductionRates;
 
@@ -74,6 +80,10 @@ protected:
     bool WindowInitialized = false;
 
     std::function<void(void)> applyBoundaryCondition;
+    std::function<void(void)> calculateTimeStep;
+    void simulateTimeStep(void);
+
+    static void batchCalculateTimeStep(array densities, array densityChange, array diffusionFilters, double dt);
     void initializeWindow();
 public:
     Environment(EnvironmentSettings settings);
@@ -82,7 +92,7 @@ public:
     void simulate(double advanceTime);
     void visualize(double normalizer);
     virtual dim4 getSize() = 0;
-    virtual void simulateTimeStep() = 0;
+    //virtual void simulateTimeStep() = 0;
     virtual array getDensity(unsigned int ligand) = 0;
     virtual array getAllDensities() = 0;
     //void test();

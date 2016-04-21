@@ -12,19 +12,19 @@ array Environment2D::getLaplacian() {
     return array(3, 3, data2);
 }
 
-void Environment2D::applyNeumannBC(array input, double resolution, BoundaryCondition bc) {
+void Environment2D::applyNeumannBC(array *input, double resolution, BoundaryCondition *bc) {
     // X direction
-    input(0, span, span) = input(1, span, span) - resolution*bc.xneg;
-    input(end, span, span) = input(end-1, span, span) - resolution*bc.xpos;
-
+    input->operator()(0, span, span) = input->operator()(1, span, span) - resolution*bc->xneg;
+    input->operator()(end, span, span) = input->operator()(end-1, span, span) - resolution*bc->xpos;
+    input->eval();
     // Y direction
-    input(span, 0, span) = input(span, 1, span) - resolution*bc.yneg;
-    input(span, end, span) = input(span, end-1, span) - resolution*bc.ypos;
+    input->operator()(span, 0, span) = input->operator()(span, 1, span) - resolution*bc->yneg;
+    input->operator()(span, end, span) = input->operator()(span, end-1, span) - resolution*bc->ypos;
+    input->eval();
 }
 
 Environment2D::Environment2D(EnvironmentSettings settings) : Environment(settings) {
     densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
-    density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
     diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
     for(size_t i = 0; i < settings.ligands.size(); i++) {
         densities(span, span, i) = settings.ligands[i].initialConcentration;
@@ -32,18 +32,25 @@ Environment2D::Environment2D(EnvironmentSettings settings) : Environment(setting
         diffusion_filters(span, span, i) *= settings.ligands[i].diffusionCoefficient;
     }
 
+    switch (settings.convolutionType) {
+        default:
+        case CT_SERIAL:
+            //density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], settings.dataType);
+            this->calculateTimeStep = std::bind(Environment2D::serialCalculateTimeStep, &this->densities,
+                                                &this->diffusion_filters, this->dt);
+            break;
+        case CT_AFBATCH:
+            //density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
+            this->calculateTimeStep = std::bind(Environment2D::batchCalculateTimeStep, &this->densities,
+                                                &this->diffusion_filters, this->dt);
+            break;
+    }
+
     switch(this->boundaryCondition.type) {
         case BC_NEUMANN:
         default:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyNeumannBC, this->densities, this->resolution, this->boundaryCondition);
+            this->applyBoundaryCondition = std::bind(Environment2D::applyNeumannBC, &this->densities, this->resolution, &this->boundaryCondition);
     }
-}
-
-void Environment2D::simulateTimeStep() {
-    this->applyBoundaryCondition();
-    this->density_changes = convolve(this->densities, this->diffusion_filters);
-    this->densities += this->density_changes*this->dt;
-    eval(this->density_changes, this->densities);
 }
 
 array Environment2D::getAllDensities() {
@@ -64,7 +71,7 @@ void Environment2D::test() {
     for (size_t i = 0; i < this->ligands.size(); i++){
         this->densities(span, span, i) = 20.0f * exp((-((x - io) * (x - io) + (y - jo) * (y - jo))) / (k * k));
     }
-    this->simulate(60.0);
+    this->simulate(120.0);
 }
 
 dim4 Environment2D::getSize() {
@@ -81,6 +88,24 @@ array Environment2D::getDensity(unsigned int ligand) {
     else
         throw new exception("Ligand index out of range");
 }
+
+void Environment2D::serialCalculateTimeStep(array *densities, array *diffusionFilters, double dt) {
+    for (size_t i = 0; i < densities->dims(2); i++) {
+        array densityChange = convolve((*densities)(span, span, i), (*diffusionFilters)(span, span, i));
+        densities->operator()(seq(1, end-1), seq(1, end-1), i) += densityChange(seq(1, end-1), seq(1, end-1))*dt;
+
+        densityChange.eval();
+        densities->eval();
+    }
+}
+
+void Environment2D::batchCalculateTimeStep(array *densities, array *diffusionFilters, double dt) {
+    array densityChanges = convolve(*densities, *diffusionFilters);
+    densities->operator()(seq(1,end-1), seq(1,end-1), span) += densityChanges(seq(1,end-1), seq(1,end-1), span)*dt;
+    densityChanges.eval();
+    densities->eval();
+}
+
 
 
 

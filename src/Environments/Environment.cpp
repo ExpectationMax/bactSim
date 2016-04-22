@@ -66,14 +66,7 @@ void Environment::visualize(double normalizer) {
             this->visualizationWin->grid(rows, 2);
         this->WindowInitialized = true;
     }
-    //af_print(this->getDensity(0));
-    //af_print(this->getDensity(1));
-    /*
-    this->visualizationWin->operator()(0, 0).image(this->getDensity(0), this->ligands[curLigand].name.c_str());
-    this->visualizationWin->operator()(0, 1).image(this->getDensity(1), this->ligands[curLigand].name.c_str());
-    this->visualizationWin->show();
-    */
-    //this->visualizationWin->grid(rows, 2);
+
     if(numLigands > 1) {
         for(size_t i = 0; i < rows; i++) {
             for (size_t j = 0; j < 2 && 2*i + j < numLigands; j++) {

@@ -10,8 +10,10 @@
 class Environment2D : public Environment {
     // Boundary condition functions;
     static void applyNeumannBC(array *input, double resolution, BoundaryCondition *bc);
-    static void serialCalculateTimeStep(array *densities, array *diffusionFilters, double dt);
-    static void batchCalculateTimeStep(array *densities, array *diffusionFilters, double dt);
+    static void applyDericheletBC(array *input,  BoundaryCondition *bc);
+    static void applyPeriodicBC(array *input);
+    static void serialCalculateTimeStep(array *densities, array *diffusionFilters, double dt, std::vector<Ligand> *ligands);
+    static void batchCalculateTimeStep(array *densities, array *diffusionFilters, double dt, std::vector<Ligand> *ligands);
     static array getLaplacian();
 public:
     Environment2D(EnvironmentSettings settings);

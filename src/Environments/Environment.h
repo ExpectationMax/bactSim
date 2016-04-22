@@ -32,7 +32,30 @@ enum BoundaryConditionType {
     BC_NEUMANN
 };
 
-struct BoundaryCondition {
+class BoundaryCondition {
+public:
+    // Default allways use Neumann boundaries
+    BoundaryCondition() {
+        this->type = BC_NEUMANN;
+    };
+    BoundaryCondition(BoundaryConditionType boundaryConditionType) {
+        this->type = boundaryConditionType;
+    };
+    BoundaryCondition(BoundaryConditionType boundaryConditionType, double xpos, double xneg) :
+            BoundaryCondition(boundaryConditionType) {
+        this->xpos = xpos;
+        this->xneg = xneg;
+    };
+    BoundaryCondition(BoundaryConditionType boundaryConditionType, double xpos, double xneg, double ypos, double yneg) :
+            BoundaryCondition(boundaryConditionType, xpos, xneg) {
+        this->ypos = ypos;
+        this->yneg = yneg;
+    };
+    BoundaryCondition(BoundaryConditionType boundaryConditionType, double xpos, double xneg, double ypos, double yneg,
+                      double zpos, double zneg) : BoundaryCondition(boundaryConditionType, xpos, xneg, ypos, yneg) {
+        this->zpos = zpos;
+        this->zneg = zneg;
+    };
     BoundaryConditionType type;
     double xneg, xpos, yneg, ypos, zneg, zpos = 0;
 };
@@ -67,7 +90,6 @@ protected:
     // Internal arrays
     af::array densities;
     af::array diffusion_filters;
-    af::array globalProductionRates;
 
     std::vector<Ligand> ligands;
 
@@ -83,9 +105,7 @@ protected:
     std::function<void(void)> applyBoundaryCondition;
     std::function<void(void)> calculateTimeStep;
     void simulateTimeStep(void);
-
     static void batchCalculateTimeStep(array densities, array densityChange, array diffusionFilters, double dt);
-    void initializeWindow();
 public:
     Environment(EnvironmentSettings settings);
     std::vector<Ligand> getLigands();

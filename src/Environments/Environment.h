@@ -9,22 +9,19 @@
 #define BORDER_SIZE 1
 #define LAPLACIAN_SIZE 1 + 2 * BORDER_SIZE
 
+#define LIGANDID 0
+#define LIGANDINTERNAL 1
+
 #include <functional>
 #include <array>
 #include <arrayfire.h>
 #include <type_traits>
+#include <map>
+#include <General/Ligands.hpp>
+
 
 using namespace af;
 
-struct Ligand {
-    std::string name;
-    double initialConcentration;
-    double globalProductionRate;
-    double globalDegradationRate;
-    double coliUptakeRate;
-    double coliProductionRate;
-    double diffusionCoefficient;
-};
 
 enum BoundaryConditionType {
     BC_PERIODIC,
@@ -65,6 +62,7 @@ enum ConvolutionType {
     CT_SERIAL
 };
 
+
 struct EnvironmentSettings {
     // Definition of Size
     double resolution;
@@ -85,6 +83,7 @@ struct EnvironmentSettings {
 #endif
 };
 
+
 class Environment {
 protected:
     // Internal arrays
@@ -92,6 +91,7 @@ protected:
     af::array diffusion_filters;
 
     std::vector<Ligand> ligands;
+    array ligandMapping;
 
     // Simultation Parameters
     GPU_REALTYPE dt;
@@ -116,9 +116,10 @@ public:
 #endif
     virtual dim4 getSize() = 0;
     //virtual void simulateTimeStep() = 0;
-    virtual array getDensity(unsigned int ligand) = 0;
+    virtual array getDensity(int) = 0;
     virtual array getAllDensities() = 0;
     //void test();
+    array getLigandMapping(std::vector<int> ligands);
 };
 
 #endif //PROJECT_NAME_ENVIRONMENT_H

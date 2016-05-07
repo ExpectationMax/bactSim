@@ -24,6 +24,7 @@ FIND_PACKAGE(ArrayFire REQUIRED)
 
 # Include the ArrayFire hreaders
 INCLUDE_DIRECTORIES(${ArrayFire_INCLUDE_DIRS})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
 # Get a list of all of the source files in the directory:
 #FILE(GLOB SOURCE "Environments/*.cpp")
@@ -33,7 +34,7 @@ if(NO_GRAPHICS)
     add_definitions(-DNO_GRAPHICS)
 endif()
 
-set(SOURCE Environments/Environment2D.cpp Environments/Environment.cpp)
+set(SOURCE Environments/Environment2D.cpp Environments/Environment.cpp BacterialPopulations/BacterialPopulation.cpp)
 
 # There are several ways of compiling source code in CMake. In most cases you
 # specify the source files to an ADD_EXCUTABLE call. Because we intend to

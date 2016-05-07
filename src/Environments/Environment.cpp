@@ -22,8 +22,7 @@ Environment::Environment(EnvironmentSettings settings) {
     std::vector<dim_t> internalDim(settings.dimensions.size() + 1);
 
     // Calculate dimensions of internal representations
-    //
-    for (auto i = 0; i < internalDim.size(); i++) {
+    for (auto i = 0; i < settings.dimensions.size(); i++) {
         internalDim[i] = (dim_t) 2 * BORDER_SIZE + floor(settings.dimensions[i]/settings.resolution);
     }
 
@@ -32,6 +31,12 @@ Environment::Environment(EnvironmentSettings settings) {
 
     this->internal_dimensions = internalDim;
 
+    ligandMapping = constant(0, ligands.size(), 2, u16);
+    for(size_t i = 0; i < ligands.size(); i++) {
+        ligandMapping(i, LIGANDID) = ligands[i].ligandId;
+        ligandMapping(i, LIGANDINTERNAL) = i;
+        af_print(ligandMapping);
+    }
 }
 
 void Environment::printInternals() {
@@ -58,6 +63,7 @@ void Environment::simulate(double advanceTime) {
     }
 }
 #ifndef NO_GRAPHICS
+
 void Environment::visualize(double normalizer) {
     unsigned int numLigands = this->ligands.size();
     unsigned int rows = ceil(numLigands / 2);
@@ -70,7 +76,7 @@ void Environment::visualize(double normalizer) {
     if(numLigands > 1) {
         for(size_t i = 0; i < rows; i++) {
             for (size_t j = 0; j < 2 && 2*i + j < numLigands; j++) {
-                array ligandDensity = this->getDensity(2*i + j);
+                array ligandDensity = this->getDensity(this->ligands[2*i + j].ligandId);
                 this->visualizationWin->operator()(i, j).image(ligandDensity/normalizer, this->ligands[2*i + j].name.c_str());
             }
         }
@@ -86,5 +92,16 @@ void Environment::simulateTimeStep(void) {
     this->applyBoundaryCondition();
     this->calculateTimeStep();
 }
+
+array Environment::getLigandMapping(std::vector<int> ligandIds) {
+    array mapping = constant(0, ligandIds.size(), u16);
+
+    for(size_t i = 0; i < ligandIds.size(); i++) {
+        mapping(i) = ligandMapping(ligandMapping(span, LIGANDID) == ligandIds[i], LIGANDINTERNAL);
+    }
+    return mapping;
+}
+
+
 
 

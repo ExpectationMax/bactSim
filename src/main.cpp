@@ -2,6 +2,9 @@
 #include "easylogging++.h"
 
 #include "Environments/Environment2D.h"
+#include <random>
+#include "BacterialPopulations/BacterialPopulation.h"
+
 
 INITIALIZE_EASYLOGGINGPP
 
@@ -20,23 +23,23 @@ int main(int argc, char** argv)
 
     EnvironmentSettings ESettings;
 
-    ESettings.resolution = 0.05;
-    ESettings.dimensions = std::vector<double> {5, 5};
+    ESettings.resolution = 1;
+    ESettings.dimensions = std::vector<double> {10, 10};
     ESettings.dt = 0.01;
     ESettings.dataType = f32;
     ESettings.convolutionType = CT_SERIAL;
 
-    BoundaryCondition boundaryCondition(BC_DIRICHELET);
-    boundaryCondition.xpos = 1.0;
-    boundaryCondition.ypos = 1.0;
+    BoundaryCondition boundaryCondition(BC_NEUMANN);
+    boundaryCondition.xpos = 0;
+    boundaryCondition.ypos = 0;
     ESettings.boundaryCondition = boundaryCondition;
 
     // Ligands
-    Ligand ligand1 = {"D=5", 20.0, 0.0, 0.0, 0.0, 0.0, 5.0};
-    Ligand ligand2 = {"D=10", 20.0, 0.0, 0.0, 0.0, 0.0, 10.0};
-    Ligand ligand3 = {"D=15", 20.0, 0.0, 0.0, 0.0, 0.0, 15.0};
-    Ligand ligand4 = {"D=20", 20.0, 0.0, 0.05, 0.0, 0.0, 20.0};
-    ESettings.ligands = std::vector<Ligand> {ligand1, ligand2, ligand3, ligand4};
+    Ligand ligand1 = {"Ligand1", 0, 10.0, 0.0, 0.0, 5.0};
+    Ligand ligand2 = {"Ligand2", 1, 10.0, 0.0, 0.0, 5.0};
+    //Ligand ligand3 = {"Ligand3", 2, 20.0, 0.0, 0.0, 15.0};
+    //Ligand ligand4 = {"Ligand4", 3, 20.0, 0.0, 0.05,20.0};
+    ESettings.ligands = std::vector<Ligand> {ligand1, ligand2};
 
 #ifndef NO_GRAPHICS
     Window mywindow(1024, 512,"Simple Diffusion simulation");
@@ -44,9 +47,14 @@ int main(int argc, char** argv)
     ESettings.win = &mywindow;
 #endif
     Environment2D simEnv(ESettings);
+    simEnv.test();
     //simEnv.printInternals();
 
-    simEnv.test();
+    array test = (randomDistribution(1000000) >= 0.5).as(b8);
+
+    printf("%f\n", sum<float>(test)/1000000);
+
+    //simEnv.test();
 
     return 0;
 }

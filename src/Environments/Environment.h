@@ -114,7 +114,7 @@ public:
 #ifndef NO_GRAPHICS
     void visualize(double normalizer);
 #endif
-    virtual dim4 getSize() = 0;
+    virtual std::vector<double> getSize() = 0;
     //virtual void simulateTimeStep() = 0;
     virtual array getDensity(int) = 0;
     virtual array getAllDensities() = 0;

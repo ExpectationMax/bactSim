@@ -29,7 +29,7 @@ public:
     Environment2D(EnvironmentSettings settings);
     array getAllDensities() override;
     array getDensity(int) override;
-    dim4 getSize() override;
+    std::vector<double> getSize() override;
     void test();
 
     array getInterpolatedPositions(array &xpos, array &ypos);

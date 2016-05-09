@@ -27,7 +27,7 @@ protected:
     array xpos;
     array ypos;
     array angle;
-    array not_tumbling;
+    array tumbling;
     array sensed_concentrations;
 
     array Kds;
@@ -50,30 +50,32 @@ protected:
             productionRates(i) = params.interactions[i].productionRate;
         }
         ligandmapping = env->getLigandMapping(ligandIds);
-        maxx = env->getSize()[0];
-        maxy = env->getSize()[1];
-
+        std::vector<double> size = env->getSize();
+        maxx = size[0];
+        maxy = size[1];
+        std::cout << "Size of environment x: " << maxx << " y: "<< maxy << std::endl;
     };
 
 public:
     Bacterial2DPopulation(Environment2D *Env, BacterialParameters parameters, int nBacteria) :
             Bacterial2DPopulation(Env, parameters) {
+        angle = 2 * af::Pi * randu(nBacteria);
+        tumbling = (randu(nBacteria)>= 0.5).as(b8);
+
         xpos = 2 + randu(nBacteria) * (maxx-4);
         ypos = 2 + randu(nBacteria) * (maxy-4);
         validatePositions();
 
-        angle = 2 * af::Pi * randu(nBacteria);
-        not_tumbling = (randu(nBacteria)>= 0.5).as(b8);
     }
 
-    Bacterial2DPopulation(Environment2D *Env, BacterialParameters parameters, int nBacteria, double *initialx, double *initialy) :
+    Bacterial2DPopulation(Environment2D *Env, BacterialParameters parameters, int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy) :
     Bacterial2DPopulation(Env, parameters) {
+        angle = 2 * af::Pi * randu(nBacteria);
+        tumbling = (randu(nBacteria)>= 0.5).as(b8);
+
         xpos = af::array(nBacteria, initialx);
         ypos = af::array(nBacteria, initialy);
         validatePositions();
-
-        angle = 2 * af::Pi * randu(nBacteria);
-        not_tumbling = (randu(nBacteria)>= 0.5).as(b8);
     }
 
     void move();

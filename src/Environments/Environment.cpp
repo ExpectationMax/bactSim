@@ -23,7 +23,8 @@ Environment::Environment(EnvironmentSettings settings) {
 
     // Calculate dimensions of internal representations
     for (auto i = 0; i < settings.dimensions.size(); i++) {
-        internalDim[i] = (dim_t) 2 * BORDER_SIZE + floor(settings.dimensions[i]/settings.resolution);
+        // closest position should be 1.5 * border size to outer border
+        internalDim[i] = (dim_t) 3 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
     }
 
     // Last dimension is the number of ligands
@@ -35,7 +36,6 @@ Environment::Environment(EnvironmentSettings settings) {
     for(size_t i = 0; i < ligands.size(); i++) {
         ligandMapping(i, LIGANDID) = ligands[i].ligandId;
         ligandMapping(i, LIGANDINTERNAL) = i;
-        af_print(ligandMapping);
     }
 }
 

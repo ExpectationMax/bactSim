@@ -61,54 +61,57 @@ array Environment2D::getAllDensities() {
 void Environment2D::test() {
 //    const unsigned Lx = this->densities.dims(0)-1, nx = Lx + 1;
 //    const unsigned Ly = this->densities.dims(1)-1, ny = Ly + 1;
-//
+////
 //    unsigned io = (unsigned)floor(Lx  / 5.0f),
 //            jo = (unsigned)floor(Ly / 5.0f),
 //            k = 20;
 //    array x = tile(moddims(seq(nx),nx,1), 1,ny);
 //    array y = tile(moddims(seq(ny),1,ny), nx,1);
 //
-//     Initial condition
+//    // Initial condition
 //    for (size_t i = 0; i < this->ligands.size(); i++){
 //        this->densities(span, span, i) = 20.0f * exp((-((x - io) * (x - io) + (y - jo) * (y - jo))) / (k * k));
 //    }
 
-    GPU_REALTYPE changes[] = {50, 50};
+    GPU_REALTYPE changes[] = {50};
 
-    array Vmax = array(2, changes);
-    GPU_REALTYPE xpositions[] = {3.534};// , 3.23243, 1.123123};
-    GPU_REALTYPE ypositions[] = {3.58852};// , 1.2323, 1.523123};
-    array xpos = array(1, xpositions);
-    array ypos = array(1, ypositions);
+    array Vmax = array(1, changes);
+    GPU_REALTYPE xpositions[] = {3.0, 4.0, 5.0};
+    GPU_REALTYPE ypositions[] = {3.0, 4.0, 5.0};
+    array xpos = array(3, xpositions);
+    array ypos = array(3, ypositions);
 
     array interpolated = getInterpolatedPositions(xpos, ypos);
-    int ligandids[] = {0, 1};
-    array ligandindexes = array(2, ligandids);
-
+    int ligandids[] = {0};
+    array ligandindexes = array(1, ligandids);
+//    double normalizer = max<double>(this->densities);
+    double normalizer = 10;
     for(int i =0; i < 20000; i++) {
-        double normalizer = max<double>(this->densities);
         array concentrations = moddims(this->getLigandConcentrations(interpolated, ligandindexes), ligandindexes.dims(0));
         this->changeLigandConcentrationBy(dt*Vmax*concentrations/(concentrations+20.0), interpolated, ligandindexes);
         //af_print(getDensity(0));
         this->simulateTimeStep();
+        std::cout << i*dt << std::endl;
         this->visualize(normalizer);
     }
-
 }
 
-dim4 Environment2D::getSize() {
+std::vector<double> Environment2D::getSize() {
+    std::vector<double> size;
+
     dim4 dims = this->densities.dims();
-    dims[0] = (dims[0] - 2*BORDER_SIZE)*resolution;
-    dims[1] = (dims[1] - 2*BORDER_SIZE)*resolution;
-    dims[2] = 1;
-    return dims;
+    // x
+    size.push_back((dims[0] - 3* BORDER_SIZE)*resolution);
+    // y
+    size.push_back((dims[1] - 3* BORDER_SIZE)*resolution);
+    return size;
 }
 
 void Environment2D::applyNeumannBC(array *input, double resolution, BoundaryCondition *bc) {
     // Y direction
     input->operator()(0, span, span) = input->operator()(1, span, span) - resolution*bc->yneg;
     input->operator()(end, span, span) = input->operator()(end-1, span, span) - resolution*bc->ypos;
-
+    input->eval();
     // X direction
     input->operator()(span, 0, span) = input->operator()(span, 1, span) - resolution*bc->xneg;
     input->operator()(span, end, span) = input->operator()(span, end-1, span) - resolution*bc->xpos;
@@ -165,13 +168,13 @@ array Environment2D::getDensity(int ligandId) {
     if (sum<int>(pos) == 0)
         throw exception("Could not find provided ligandId in Environment.");
     array index = ligandMapping(pos, LIGANDINTERNAL);
-    return this->densities(span, span, index);
+    return this->densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), index);
 }
 
 // TODO: Something is going wrong here,
 array Environment2D::getInterpolatedPositions(array &xpos, array &ypos) {
-    array xindex = xpos/this->resolution + BORDER_SIZE;
-    array yindex = ypos/this->resolution + BORDER_SIZE;
+    array xindex = xpos/this->resolution + 1.5*BORDER_SIZE;
+    array yindex = ypos/this->resolution + 1.5*BORDER_SIZE;
 
     xindex = moddims(xindex, 1, xindex.dims(0));
     yindex = moddims(yindex, 1, yindex.dims(0));
@@ -189,7 +192,7 @@ array Environment2D::getInterpolatedPositions(array &xpos, array &ypos) {
     double normalization = pow(this->resolution, -1);
     output(seq(W_TOPLEFT, W_BOTTOMRIGHT)) *= normalization;
 
-    eval(output);
+    // eval(output);
     return output;
 }
 
@@ -223,13 +226,12 @@ void Environment2D::changeLigandConcentrationBy(array concDifferences, array pos
     array top = posAndWeights(POS_TOP);
     array bottom = posAndWeights(POS_BOTTOM);
     // tile is required, to allow element wise calculation between two array datatypes (requires same size)
-    // moddims changes the metadat to convert the result array of the calculation into a z vector
+    // moddims changes the metadata to convert the result array of the calculation into a z vector (required as operation is in place)
     densities(left, top, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPLEFT), concentrations), targetdims);
     densities(right, top, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPRIGHT), concentrations), targetdims);
     densities(left, bottom, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMLEFT), concentrations), targetdims);
     densities(right, bottom, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMRIGHT), concentrations), targetdims);
-
-//    eval(this->densities);
+    // eval(left, right, top, bottom, densities);
 }
 
 void Environment2D::evalDensities() {

@@ -108,7 +108,7 @@ void Environment2D::applyNeumannBC(array *input, double resolution, BoundaryCond
     // Y direction
     input->operator()(0, span, span) = input->operator()(1, span, span) - resolution*bc->yneg;
     input->operator()(end, span, span) = input->operator()(end-1, span, span) - resolution*bc->ypos;
-    input->eval();
+
     // X direction
     input->operator()(span, 0, span) = input->operator()(span, 1, span) - resolution*bc->xneg;
     input->operator()(span, end, span) = input->operator()(span, end-1, span) - resolution*bc->xpos;
@@ -119,7 +119,7 @@ void Environment2D::applyDericheletBC(array *input, BoundaryCondition *bc) {
     // Y direction
     input->operator()(0, span, span) = input->operator()(1, span, span)*-1.0 + 2.0*bc->yneg;
     input->operator()(end, span, span) = input->operator()(end-1, span, span)*-1.0 + 2.0*bc->ypos;
-    input->eval();
+
     // X direction
     input->operator()(span, 0, span) = input->operator()(span, 1, span)*-1.0 + 2.0*bc->xneg;
     input->operator()(span, end, span) = input->operator()(span, end-1, span)*-1.0 + 2.0*bc->xpos;
@@ -132,7 +132,7 @@ void Environment2D::applyPeriodicBC(array *input) {
     // Y direction
     input->operator()(0, span, span) = input->operator()(end-1, span, span);
     input->operator()(end, span, span) = input->operator()(1, span, span);
-    input->eval();
+
     // X direction
     input->operator()(span, 0, span) = input->operator()(span, end-1, span);
     input->operator()(span, end, span) = input->operator()(span, 1, span);
@@ -168,20 +168,25 @@ array Environment2D::getDensity(int ligandId) {
     return this->densities(span, span, index);
 }
 
+// TODO: Something is going wrong here,
 array Environment2D::getInterpolatedPositions(array &xpos, array &ypos) {
     array xindex = xpos/this->resolution + BORDER_SIZE;
     array yindex = ypos/this->resolution + BORDER_SIZE;
 
+    xindex = moddims(xindex, 1, xindex.dims(0));
+    yindex = moddims(yindex, 1, yindex.dims(0));
+
     array output = array(8, xpos.dims(0));
-    output(POS_LEFT) = af::floor(xindex);  // Left
-    output(POS_RIGHT) = af::ceil(xindex);   // Right
-    output(POS_TOP) = af::floor(yindex);  // Top
-    output(POS_BOTTOM) = af::ceil(yindex);   // Bottom
-    output(W_TOPLEFT) = ((xindex - output(POS_LEFT)) * (yindex - output(POS_TOP)));
-    output(W_TOPRIGHT) = ((output(POS_RIGHT) - xindex) * (yindex - output(POS_TOP)));
-    output(W_BOTTOMLEFT) = ((xindex - output(POS_LEFT)) * (output(POS_BOTTOM) - yindex));
-    output(W_BOTTOMRIGHT) = ((output(POS_RIGHT) - xindex) * (output(POS_BOTTOM) - yindex));
-    double normalization = 1/std::pow(this->resolution, 2);
+    output(POS_LEFT, span) = af::floor(xindex);  // Left
+    output(POS_RIGHT, span) = af::ceil(xindex);   // Right
+    output(POS_TOP, span) = af::floor(yindex);  // Top
+    output(POS_BOTTOM, span) = af::ceil(yindex);   // Bottom
+    
+    output(W_TOPLEFT, span) = ((xindex - output(POS_LEFT, span)) * (yindex - output(POS_TOP, span)));
+    output(W_TOPRIGHT, span) = ((output(POS_RIGHT, span) - xindex) * (yindex - output(POS_TOP, span)));
+    output(W_BOTTOMLEFT, span) = ((xindex - output(POS_LEFT, span)) * (output(POS_BOTTOM, span) - yindex));
+    output(W_BOTTOMRIGHT, span) = ((output(POS_RIGHT, span) - xindex) * (output(POS_BOTTOM, span) - yindex));
+    double normalization = pow(this->resolution, -1);
     output(seq(W_TOPLEFT, W_BOTTOMRIGHT)) *= normalization;
 
     eval(output);
@@ -199,13 +204,13 @@ array Environment2D::getLigandConcentrations(array posAndWeights, array ligands)
     array bottom = posAndWeights(POS_BOTTOM);
     
     array ligdensities =
-            this->densities(left, top, ligands) * tile(posAndWeights(W_TOPLEFT), tilingDims) +
-            this->densities(right, top, ligands) * tile(posAndWeights(W_TOPRIGHT), tilingDims) +
-            this->densities(left, bottom, ligands) * tile(posAndWeights(W_BOTTOMLEFT), tilingDims) +
-            this->densities(right, bottom, ligands) * tile(posAndWeights(W_BOTTOMRIGHT), tilingDims);
+            densities(left, top, ligands) * tile(posAndWeights(W_TOPLEFT), tilingDims) +
+            densities(right, top, ligands) * tile(posAndWeights(W_TOPRIGHT), tilingDims) +
+            densities(left, bottom, ligands) * tile(posAndWeights(W_BOTTOMLEFT), tilingDims) +
+            densities(right, bottom, ligands) * tile(posAndWeights(W_BOTTOMRIGHT), tilingDims);
 
-    eval(ligdensities);
-    return ligdensities;
+//    eval(ligdensities);
+    return moddims(ligdensities, ligdensities.dims(2));
 }
 
 void Environment2D::changeLigandConcentrationBy(array concDifferences, array posAndWeights, array ligands) {
@@ -219,12 +224,16 @@ void Environment2D::changeLigandConcentrationBy(array concDifferences, array pos
     array bottom = posAndWeights(POS_BOTTOM);
     // tile is required, to allow element wise calculation between two array datatypes (requires same size)
     // moddims changes the metadat to convert the result array of the calculation into a z vector
-    this->densities(left, top, ligands) += moddims(concDifferences/tile(posAndWeights(W_TOPLEFT), concentrations), targetdims);
-    this->densities(right, top, ligands) += moddims(concDifferences/tile(posAndWeights(W_TOPRIGHT), concentrations), targetdims);
-    this->densities(left, bottom, ligands) += moddims(concDifferences/tile(posAndWeights(W_BOTTOMLEFT), concentrations), targetdims);
-    this->densities(right, bottom, ligands) += moddims(concDifferences/tile(posAndWeights(W_BOTTOMRIGHT), concentrations), targetdims);
+    densities(left, top, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPLEFT), concentrations), targetdims);
+    densities(right, top, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPRIGHT), concentrations), targetdims);
+    densities(left, bottom, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMLEFT), concentrations), targetdims);
+    densities(right, bottom, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMRIGHT), concentrations), targetdims);
 
-    eval(this->densities);
+//    eval(this->densities);
+}
+
+void Environment2D::evalDensities() {
+    eval(densities);
 }
 
 

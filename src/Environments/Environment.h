@@ -17,7 +17,7 @@
 #include <arrayfire.h>
 #include <type_traits>
 #include <map>
-#include <General/Ligands.hpp>
+#include <General/Ligand.hpp>
 
 
 using namespace af;
@@ -72,7 +72,7 @@ struct EnvironmentSettings {
     std::vector<Ligand> ligands;
 
     //Simulation parameters
-    double dt;
+    GPU_REALTYPE dt;
     af_dtype dataType;
     BoundaryCondition boundaryCondition;
     ConvolutionType convolutionType = CT_SERIAL;
@@ -104,13 +104,13 @@ protected:
 #endif
     std::function<void(void)> applyBoundaryCondition;
     std::function<void(void)> calculateTimeStep;
-    void simulateTimeStep(void);
     static void batchCalculateTimeStep(array densities, array densityChange, array diffusionFilters, double dt);
 public:
     Environment(EnvironmentSettings settings);
     std::vector<Ligand> getLigands();
     void printInternals();
     void simulate(double advanceTime);
+    void simulateTimeStep(void);
 #ifndef NO_GRAPHICS
     void visualize(double normalizer);
 #endif

@@ -37,6 +37,8 @@ public:
     void changeLigandConcentrationBy(array concDifferences, array posAndWeights, array ligands);
 
     array getLigandConcentrations(array posAndWeights, array ligands);
+
+    void evalDensities();
 };
 
 #endif //CHEMOHYBRID_GPU_ENVIRONMENT2D_H

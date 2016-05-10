@@ -4,7 +4,7 @@
 #include "Environments/Environment2D.h"
 #include <random>
 #include "BacterialPopulations/BacterialPopulation.h"
-
+#include "Models/Model2D.h"
 
 INITIALIZE_EASYLOGGINGPP
 
@@ -21,60 +21,82 @@ int main(int argc, char** argv)
     printf("Toolkit: %s\n", t_device_toolkit);
     printf("Compute version: %s\n", t_device_compute);
 
+    // Setup Environment
     EnvironmentSettings ESettings;
-
     ESettings.resolution = 0.5;
     ESettings.dimensions = std::vector<double> {10, 10};
-    ESettings.dt = 0.005;
+    ESettings.dt = 0.0005;
     ESettings.dataType = f32;
     ESettings.convolutionType = CT_SERIAL;
 
-    BoundaryCondition boundaryCondition(BC_NEUMANN);
+    BoundaryCondition boundaryCondition(BC_PERIODIC);
     boundaryCondition.xpos = 0;
     boundaryCondition.ypos = 0;
     ESettings.boundaryCondition = boundaryCondition;
 
-    // Ligands
-    Ligand ligand1 = {"Ligand1", 0, 1.0, 0.0, 0.0, 5.0};
-    //Ligand ligand2 = {"Ligand2", 1, 10.0, 0.0, 0.0, 10.0};
+    // Setup Ligands
+    Ligand ligand1 = {"Ligand1", 0, 10.0, 0.0, 0.0, 5.0};
+    Ligand ligand2 = {"Ligand2", 1, 10.0, 0.0, 0.0, 10.0};
     //Ligand ligand3 = {"Ligand3", 2, 20.0, 0.0, 0.0, 15.0};
     //Ligand ligand4 = {"Ligand4", 3, 20.0, 0.0, 0.05,20.0};
-    ESettings.ligands = std::vector<Ligand> {ligand1};//, ligand2};
+    ESettings.ligands = std::vector<Ligand> {ligand1, ligand2};
 
-#ifndef NO_GRAPHICS
-    Window mywindow(1024, 512,"Simple Diffusion simulation");
-    mywindow.setColorMap(AF_COLORMAP_HEAT);
-    ESettings.win = &mywindow;
-#endif
     Environment2D simEnv(ESettings);
 
-     LigandInteraction interaction1 = {0, 5, 0, 0};
-//    LigandInteraction interaction2 = {0, 10, 0, 0};
-    std::vector<LigandInteraction> ligandInteractions = {interaction1};//, interaction2};
+    // Setup population 1
+    LigandInteraction interaction11 = {0, 5, 0, 0};
+    LigandInteraction interaction12 = {1, 20, 0, 0};
+    std::vector<LigandInteraction> ligandInteractions = {interaction11, interaction12};
+    BacterialParameters bactParams = {ligandInteractions, ESettings.dt, 50};
+    Bacterial2DPopulation bacteria(&simEnv, bactParams, 50);
 
-    BacterialParameters bactParams = {ligandInteractions, ESettings.dt, 0.01};
+    // Setup population 2
+    LigandInteraction interaction21 = {0, 10, 0, 0};
+    LigandInteraction interaction22 = {1, 40, 0, 0};
+    std::vector<LigandInteraction> ligandInteractions2 = {interaction21, interaction22};
+    BacterialParameters bactParams2 = {ligandInteractions2, ESettings.dt, 10};
+    Bacterial2DPopulation bacteria2(&simEnv, bactParams, 50);
 
-    GPU_REALTYPE xpos[] = {5.0, 9.0, 10.0};
-    GPU_REALTYPE ypos[] = {5.0, 9.0, 10.0};
-    Bacterial2DPopulation bacteria(&simEnv, bactParams, 3, xpos, ypos);
+    // Setup model
+    std::vector<Bacterial2DPopulation *> populations = { &bacteria, &bacteria2 };
+    Model2D mymodel(&simEnv, populations);
+
+    // Enable visualization
+#ifndef NO_GRAPHICS
+    Window diffusionwindow(1024, 512,"Simple Diffusion simulation");
+    diffusionwindow.setColorMap(AF_COLORMAP_HEAT);
+    Window populationwindow(1024,512, "Populations");
+    mymodel.setupVisualizationWindows(diffusionwindow, populationwindow);
+#endif
 
 
     time_t start= time(NULL);
 //    simEnv.test();
-    std::cout << time(NULL)-start;
-    for(int i =0; i < 20000; i++) {
-        double normalizer = max<double>(simEnv.getAllDensities());
-        bacteria.simulateTimestep();
-        simEnv.evalDensities();
-        simEnv.simulateTimeStep();
-        simEnv.visualize(normalizer);
 
-        if(i % 20 == 0){
-            std::cout << pow((double)(time(NULL)-start)/20.0, -1) << " iterations per second" << std::endl;
-            start = time(NULL);
-        }
-
+    for(int i =0; i < 20/ESettings.dt; i++) {
+        mymodel.simulateTimestep();
+#ifndef NO_GRAPHICS
+        mymodel.visualize();
+#endif
     }
+
+//    Window bacteriaWin(512, 512,"Simulation of bacterial population");
+//    std::cout << time(NULL)-start;
+//    for(int i =0; i < 20/ESettings.dt; i++) {
+//        double normalizer = max<double>(simEnv.getAllDensities());
+//        bacteria.simulateTimestep();
+//        bacteriaWin.scatter(bacteria.getXpos(), bacteria.getYpos());
+//        simEnv.evalDensities();
+//
+//        simEnv.simulateTimeStep();
+//        simEnv.visualize(normalizer);
+//
+//        if(i % 200 == 0){
+//            std::cout << pow((double)(time(NULL)-start)/200.0, -1) << " iterations per second" << std::endl;
+//            start = time(NULL);
+//        }
+//
+//    }
 
     // simEnv.test();
     // simEnv.printInternals();

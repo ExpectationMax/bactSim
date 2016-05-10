@@ -92,7 +92,6 @@ void Environment2D::test() {
         //af_print(getDensity(0));
         this->simulateTimeStep();
         std::cout << i*dt << std::endl;
-        this->visualize(normalizer);
     }
 }
 
@@ -171,27 +170,30 @@ array Environment2D::getDensity(int ligandId) {
     return this->densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), index);
 }
 
-// TODO: Something is going wrong here,
+// TODO: Something is going wrong here, first point has weight sum larger than 1
 array Environment2D::getInterpolatedPositions(array &xpos, array &ypos) {
     array xindex = xpos/this->resolution + 1.5*BORDER_SIZE;
     array yindex = ypos/this->resolution + 1.5*BORDER_SIZE;
 
     xindex = moddims(xindex, 1, xindex.dims(0));
     yindex = moddims(yindex, 1, yindex.dims(0));
-
+    //af_print(xindex);
+    //af_print(yindex);
     array output = array(8, xpos.dims(0));
     output(POS_LEFT, span) = af::floor(xindex);  // Left
     output(POS_RIGHT, span) = af::ceil(xindex);   // Right
     output(POS_TOP, span) = af::floor(yindex);  // Top
     output(POS_BOTTOM, span) = af::ceil(yindex);   // Bottom
-    
+    //af_print(output(seq(POS_LEFT, POS_BOTTOM), span));
+
     output(W_TOPLEFT, span) = ((xindex - output(POS_LEFT, span)) * (yindex - output(POS_TOP, span)));
     output(W_TOPRIGHT, span) = ((output(POS_RIGHT, span) - xindex) * (yindex - output(POS_TOP, span)));
     output(W_BOTTOMLEFT, span) = ((xindex - output(POS_LEFT, span)) * (output(POS_BOTTOM, span) - yindex));
     output(W_BOTTOMRIGHT, span) = ((output(POS_RIGHT, span) - xindex) * (output(POS_BOTTOM, span) - yindex));
-    double normalization = pow(this->resolution, -1);
-    output(seq(W_TOPLEFT, W_BOTTOMRIGHT)) *= normalization;
-
+    //af_print(output(seq(W_TOPLEFT, W_BOTTOMRIGHT), span));
+    double normalization = pow(this->resolution, -2);
+    output(seq(W_TOPLEFT, W_BOTTOMRIGHT), span) *= normalization;
+    //af_print(output);
     // eval(output);
     return output;
 }
@@ -217,6 +219,7 @@ array Environment2D::getLigandConcentrations(array posAndWeights, array ligands)
 }
 
 void Environment2D::changeLigandConcentrationBy(array concDifferences, array posAndWeights, array ligands) {
+
     if( concDifferences.dims(0) != ligands.dims(0))
         throw exception("The number of provided concentrations has to be equal to the number of ligands");
     dim_t concentrations = concDifferences.dims(0);
@@ -231,20 +234,9 @@ void Environment2D::changeLigandConcentrationBy(array concDifferences, array pos
     densities(right, top, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPRIGHT), concentrations), targetdims);
     densities(left, bottom, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMLEFT), concentrations), targetdims);
     densities(right, bottom, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMRIGHT), concentrations), targetdims);
-    // eval(left, right, top, bottom, densities);
+    // eval(densities, left, right, top, bottom);
 }
 
 void Environment2D::evalDensities() {
     eval(densities);
 }
-
-
-
-
-
-
-
-
-
-
-

@@ -34,7 +34,7 @@ if(NO_GRAPHICS)
     add_definitions(-DNO_GRAPHICS)
 endif()
 
-set(SOURCE Environments/Environment2D.cpp Environments/Environment.cpp BacterialPopulations/BacterialPopulation.cpp)
+set(SOURCE Environments/Environment2D.cpp Environments/Environment.cpp BacterialPopulations/BacterialPopulation.cpp Models/Model2D.h Models/Model2D.cpp )
 
 # There are several ways of compiling source code in CMake. In most cases you
 # specify the source files to an ADD_EXCUTABLE call. Because we intend to

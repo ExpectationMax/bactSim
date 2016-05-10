@@ -15,10 +15,6 @@ Environment::Environment(EnvironmentSettings settings) {
     this->resolution = settings.resolution;
     this->boundaryCondition = settings.boundaryCondition;
 
-#ifndef NO_GRAPHICS
-    this->visualizationWin = settings.win;
-#endif
-
     std::vector<dim_t> internalDim(settings.dimensions.size() + 1);
 
     // Calculate dimensions of internal representations
@@ -54,37 +50,32 @@ void Environment::simulate(double advanceTime) {
     double normalizer = max<double>(this->densities);
     while (progress(iter, t, advanceTime)) {
         this->simulateTimeStep();
-#ifndef NO_GRAPHICS
-        if(this->visualizationWin != NULL && (iter % 10) == 0){
-            this->visualize(normalizer);
-        }
-#endif
         iter++;
     }
 }
 #ifndef NO_GRAPHICS
 
-void Environment::visualize(double normalizer) {
-    unsigned int numLigands = this->ligands.size();
-    unsigned int rows = ceil(numLigands / 2);
-    if(!this->WindowInitialized) {
-        if(numLigands > 1)
-            this->visualizationWin->grid(rows, 2);
-        this->WindowInitialized = true;
-    }
+void Environment::setupVisualizationWindow(Window &win) {
+    visualizationWin = &win;
+    numLigands = this->ligands.size();
+    rows = ceil(numLigands / 2);
+    if(numLigands > 1)
+        visualizationWin->grid(rows, 2);
+}
 
+void Environment::visualize(double normalizer) {
     if(numLigands > 1) {
         for(size_t i = 0; i < rows; i++) {
             for (size_t j = 0; j < 2 && 2*i + j < numLigands; j++) {
                 array ligandDensity = this->getDensity(this->ligands[2*i + j].ligandId);
-                this->visualizationWin->operator()(i, j).image(ligandDensity/normalizer, this->ligands[2*i + j].name.c_str());
+                visualizationWin->operator()(i, j).image(ligandDensity/normalizer, this->ligands[2*i + j].name.c_str());
             }
         }
     }
     else
-        this->visualizationWin->image(this->densities/normalizer, this->ligands[0].name.c_str());
+        visualizationWin->image(this->densities/normalizer, this->ligands[0].name.c_str());
 
-    this->visualizationWin->show();
+    visualizationWin->show();
 }
 #endif
 

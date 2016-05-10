@@ -23,6 +23,7 @@ protected:
     array interpolatedPositions;
     int maxx;
     int maxy;
+    int size;
     BacterialParameters params;
     array xpos;
     array ypos;
@@ -35,6 +36,8 @@ protected:
     array productionRates;
 
     array ligandmapping;
+
+    std::function<void(void)> validatePositions;
 
     Bacterial2DPopulation(Environment2D *env, BacterialParameters params) : env(env), params(params) {
         std::vector<int> ligandIds;
@@ -53,42 +56,73 @@ protected:
         std::vector<double> size = env->getSize();
         maxx = size[0];
         maxy = size[1];
-        std::cout << "Size of environment x: " << maxx << " y: "<< maxy << std::endl;
+
+        switch(env->getBoundaryConditionType()) {
+            case BC_PERIODIC:
+                validatePositions = std::bind(Bacterial2DPopulation::applyPeriodicBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos));
+                break;
+            default:
+                validatePositions = std::bind(Bacterial2DPopulation::applySolidBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos), std::ref(tumbling));
+        }
     };
 
+    void initializeAngleAndTumbiling() {
+        angle = 2 * af::Pi * randu(size);
+        tumbling = (randu(size)>= 0.5).as(b8);
+    }
+
+    void setPositions(array x, array y) {
+        xpos = x;
+        ypos = y;
+        validatePositions();
+        updateInterpolatedPositions();
+    }
+
+    void updateInterpolatedPositions();
+
 public:
+    static void applyPeriodicBoundary(int maxx, int maxy, array &xpos, array &ypos);
+    static void applySolidBoundary(int maxx, int maxy, array &xpos, array &ypos, array &tumbling);
+
     Bacterial2DPopulation(Environment2D *Env, BacterialParameters parameters, int nBacteria) :
             Bacterial2DPopulation(Env, parameters) {
-        angle = 2 * af::Pi * randu(nBacteria);
-        tumbling = (randu(nBacteria)>= 0.5).as(b8);
+        size = nBacteria;
 
-        xpos = 2 + randu(nBacteria) * (maxx-4);
-        ypos = 2 + randu(nBacteria) * (maxy-4);
-        validatePositions();
+        initializeAngleAndTumbiling();
 
+        array randx = randu(size) * maxx;
+        array randy = randu(size) * maxy;
+        setPositions(randx, randy);
     }
 
     Bacterial2DPopulation(Environment2D *Env, BacterialParameters parameters, int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy) :
-    Bacterial2DPopulation(Env, parameters) {
-        angle = 2 * af::Pi * randu(nBacteria);
-        tumbling = (randu(nBacteria)>= 0.5).as(b8);
+            Bacterial2DPopulation(Env, parameters) {
+        size = nBacteria;
 
-        xpos = af::array(nBacteria, initialx);
-        ypos = af::array(nBacteria, initialy);
-        validatePositions();
+        initializeAngleAndTumbiling();
+
+        setPositions(array(size, initialx), array(size, initialy));
     }
 
     void move();
 
-    void validatePositions();
-    void updateInterpolatedPositions();
-
-    int getSize();
-    void interactWithEnv(array individuals);
+    void interactWithEnv(int individual);
 
     void simulateTimestep();
 
     void simulate();
+
+    int getSize() { return size; }
+
+    array getXpos() { return xpos; }
+
+    array getYpos() { return ypos; }
+
+    void liveTimestep();
+
+    void interactWithEnvPos(array pos);
+
+    void interactWithEnv(array individuals);
 };
 
 

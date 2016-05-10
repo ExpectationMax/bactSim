@@ -78,9 +78,6 @@ struct EnvironmentSettings {
     ConvolutionType convolutionType = CT_SERIAL;
 
     // Visualization parameters
-#ifndef NO_GRAPHICS
-    Window *win = NULL;
-#endif
 };
 
 
@@ -100,7 +97,8 @@ protected:
     std::vector<dim_t> internal_dimensions;
 #ifndef NO_GRAPHICS
     Window *visualizationWin;
-    bool WindowInitialized = false;
+    unsigned int numLigands;
+    unsigned int rows;
 #endif
     std::function<void(void)> applyBoundaryCondition;
     std::function<void(void)> calculateTimeStep;
@@ -120,6 +118,10 @@ public:
     virtual array getAllDensities() = 0;
     //void test();
     array getLigandMapping(std::vector<int> ligands);
+
+    void setupVisualizationWindow(Window &win);
+
+    BoundaryConditionType getBoundaryConditionType() { return boundaryCondition.type; }
 };
 
 #endif //PROJECT_NAME_ENVIRONMENT_H

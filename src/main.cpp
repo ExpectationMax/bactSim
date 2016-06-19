@@ -35,30 +35,39 @@ int main(int argc, char** argv)
     ESettings.boundaryCondition = boundaryCondition;
 
     // Setup Ligands
+
     Ligand ligand1 = {"Ligand1", 0, 10.0, 0.0, 0.0, 5.0};
-    Ligand ligand2 = {"Ligand2", 1, 10.0, 0.0, 0.0, 10.0};
+    ESettings.ligands.push_back(ligand1);
+    //Ligand ligand2 = {"Ligand2", 1, 10.0, 0.0, 0.0, 10.0};
+    //ESettings.ligands.push_back(ligand2);
     //Ligand ligand3 = {"Ligand3", 2, 20.0, 0.0, 0.0, 15.0};
     //Ligand ligand4 = {"Ligand4", 3, 20.0, 0.0, 0.05,20.0};
-    ESettings.ligands = std::vector<Ligand> {ligand1, ligand2};
 
     Environment2D simEnv(ESettings);
 
+    // Update randomness
+    af::setSeed(time(NULL));
+
+    std::vector<Bacterial2DPopulation *> populations;
+
     // Setup population 1
-    LigandInteraction interaction11 = {0, 5, 0, 0};
-    LigandInteraction interaction12 = {1, 20, 0, 0};
-    std::vector<LigandInteraction> ligandInteractions = {interaction11, interaction12};
-    BacterialParameters bactParams = {ligandInteractions, ESettings.dt, 50};
-    Bacterial2DPopulation bacteria(&simEnv, bactParams, 50);
+    LigandInteraction interaction11 = {0, 10, 0, 0};
+    //LigandInteraction interaction12 = {1, 0, 0, 0};
+    std::vector<LigandInteraction> ligandInteractions = {interaction11};//, interaction12};
+    BacterialParameters bactParams = {ligandInteractions, ESettings.dt, 10};
+    Bacterial2DPopulation bacteria(&simEnv, bactParams, 2);
+    populations.push_back(&bacteria);
 
     // Setup population 2
-    LigandInteraction interaction21 = {0, 10, 0, 0};
-    LigandInteraction interaction22 = {1, 40, 0, 0};
-    std::vector<LigandInteraction> ligandInteractions2 = {interaction21, interaction22};
-    BacterialParameters bactParams2 = {ligandInteractions2, ESettings.dt, 10};
-    Bacterial2DPopulation bacteria2(&simEnv, bactParams, 50);
-
+//    LigandInteraction interaction21 = {0, 0, 0, 0};
+//    LigandInteraction interaction22 = {1, 10, 0, 0};
+//    std::vector<LigandInteraction> ligandInteractions2 = {interaction22};
+//    BacterialParameters bactParams2 = {ligandInteractions2, ESettings.dt, 10};
+//    Bacterial2DPopulation bacteria2(&simEnv, bactParams2, 5);
+//    populations.push_back(&bacteria2);
     // Setup model
-    std::vector<Bacterial2DPopulation *> populations = { &bacteria, &bacteria2 };
+
+
     Model2D mymodel(&simEnv, populations);
 
     // Enable visualization

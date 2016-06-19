@@ -50,14 +50,19 @@ void Model2D::setupVisualizationWindows(Window &winDiff, Window &winPop) {
 
     populationsWin = &winPop;
     populationsWin->setTitle("Bacterial positions");
-    populationsWin->grid(1, bacterialPopulations.size());
+    if(bacterialPopulations.size() > 1)
+        populationsWin->grid(1, bacterialPopulations.size());
 }
 
 void Model2D::visualize() {
     double normalizer = max<double>(env->getAllDensities());
     env->visualize(normalizer);
-    for(size_t i = 0; i < bacterialPopulations.size(); i++) {
-        populationsWin->operator()(0, i).scatter(bacterialPopulations[i]->getXpos(), bacterialPopulations[i]->getYpos());
+    if(bacterialPopulations.size() > 1) {
+        for(size_t i = 0; i < bacterialPopulations.size(); i++)
+            populationsWin->operator()(0, i).scatter(bacterialPopulations[i]->getXpos(), -1*bacterialPopulations[i]->getYpos());
+    } else {
+        populationsWin->scatter(bacterialPopulations[0]->getXpos(), -1*bacterialPopulations[0]->getYpos());
     }
+
     populationsWin->show();
 }

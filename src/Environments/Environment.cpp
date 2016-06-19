@@ -19,8 +19,9 @@ Environment::Environment(EnvironmentSettings settings) {
 
     // Calculate dimensions of internal representations
     for (auto i = 0; i < settings.dimensions.size(); i++) {
+        // Invert the order of axis, as providing dimensions in format zyx seems unituitive
         // closest position should be 1.5 * border size to outer border
-        internalDim[i] = (dim_t) 3 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
+        internalDim[settings.dimensions.size() - i - 1] = (dim_t) 3 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
     }
 
     // Last dimension is the number of ligands

@@ -6,8 +6,6 @@
 #include <iostream>
 #include <exception>
 
-
-
 array Environment2D::getLaplacian() {
     GPU_REALTYPE data2 [] =
             {0.0, 1.0, 0.0,
@@ -16,7 +14,7 @@ array Environment2D::getLaplacian() {
     return array(3, 3, data2);
 }
 
-Environment2D::Environment2D(EnvironmentSettings settings) : Environment(settings) {
+Environment2D::Environment2D(EnvironmentSettings settings) : Environment(settings), diffequation(Diffusion2D(this)) {
     densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
     diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
 
@@ -100,9 +98,9 @@ std::vector<double> Environment2D::getSize() {
 
     dim4 dims = this->densities.dims();
     // x
-    size.push_back((dims[0] - 3* BORDER_SIZE)*resolution);
-    // y
     size.push_back((dims[1] - 3* BORDER_SIZE)*resolution);
+    // y
+    size.push_back((dims[0] - 3* BORDER_SIZE)*resolution);
     return size;
 }
 
@@ -170,7 +168,6 @@ array Environment2D::getDensity(int ligandId) {
     return this->densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), index);
 }
 
-// TODO: Something is going wrong here, first point has weight sum larger than 1
 array Environment2D::getInterpolatedPositions(array &xpos, array &ypos) {
     array xindex = xpos/this->resolution + 1.5*BORDER_SIZE;
     array yindex = ypos/this->resolution + 1.5*BORDER_SIZE;
@@ -209,10 +206,10 @@ array Environment2D::getLigandConcentrations(array posAndWeights, array ligands)
     array bottom = posAndWeights(POS_BOTTOM);
     
     array ligdensities =
-            densities(left, top, ligands) * tile(posAndWeights(W_TOPLEFT), tilingDims) +
-            densities(right, top, ligands) * tile(posAndWeights(W_TOPRIGHT), tilingDims) +
-            densities(left, bottom, ligands) * tile(posAndWeights(W_BOTTOMLEFT), tilingDims) +
-            densities(right, bottom, ligands) * tile(posAndWeights(W_BOTTOMRIGHT), tilingDims);
+            densities(top, left, ligands) * tile(posAndWeights(W_TOPLEFT), tilingDims) +
+            densities(top, right, ligands) * tile(posAndWeights(W_TOPRIGHT), tilingDims) +
+            densities(bottom, left, ligands) * tile(posAndWeights(W_BOTTOMLEFT), tilingDims) +
+            densities(bottom, right, ligands) * tile(posAndWeights(W_BOTTOMRIGHT), tilingDims);
 
 //    eval(ligdensities);
     return moddims(ligdensities, ligdensities.dims(2));
@@ -230,10 +227,10 @@ void Environment2D::changeLigandConcentrationBy(array concDifferences, array pos
     array bottom = posAndWeights(POS_BOTTOM);
     // tile is required, to allow element wise calculation between two array datatypes (requires same size)
     // moddims changes the metadata to convert the result array of the calculation into a z vector (required as operation is in place)
-    densities(left, top, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPLEFT), concentrations), targetdims);
-    densities(right, top, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPRIGHT), concentrations), targetdims);
-    densities(left, bottom, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMLEFT), concentrations), targetdims);
-    densities(right, bottom, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMRIGHT), concentrations), targetdims);
+    densities(top, left, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPLEFT), concentrations), targetdims);
+    densities(top, right, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPRIGHT), concentrations), targetdims);
+    densities(bottom, left, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMLEFT), concentrations), targetdims);
+    densities(bottom, right, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMRIGHT), concentrations), targetdims);
     // eval(densities, left, right, top, bottom);
 }
 

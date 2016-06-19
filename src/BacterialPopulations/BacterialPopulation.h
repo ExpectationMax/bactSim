@@ -41,7 +41,6 @@ protected:
 
     Bacterial2DPopulation(Environment2D *env, BacterialParameters params) : env(env), params(params) {
         std::vector<int> ligandIds;
-        af::setSeed(time(NULL));
         Kds = array((dim_t)params.interactions.size());
         uptakeRates  = array((dim_t)params.interactions.size());
         productionRates = array((dim_t)params.interactions.size());

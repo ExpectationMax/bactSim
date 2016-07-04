@@ -18,10 +18,11 @@
 #include <type_traits>
 #include <map>
 #include <General/Ligand.hpp>
-
+#include "Solvers/Solver.h"
+#include <memory>
 
 using namespace af;
-
+using std::unique_ptr;
 
 enum BoundaryConditionType {
     BC_PERIODIC,
@@ -101,10 +102,18 @@ protected:
     unsigned int rows;
 #endif
     std::function<void(void)> applyBoundaryCondition;
-    std::function<void(void)> calculateTimeStep;
+    //std::function<void(void)> calculateTimeStep;
+    void calculateTimeStep() {
+        densities = odesolver->solveStep(*diffusionEquation, densities, dt);
+    }
+
     static void batchCalculateTimeStep(array densities, array densityChange, array diffusionFilters, double dt);
+
+    Solver *odesolver;
+    unique_ptr<DifferentialEquation> diffusionEquation = NULL;
+
+    Environment(EnvironmentSettings settings, Solver &odesolver);
 public:
-    Environment(EnvironmentSettings settings);
     std::vector<Ligand> getLigands();
     void printInternals();
     void simulate(double advanceTime);

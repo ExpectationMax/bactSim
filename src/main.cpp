@@ -5,6 +5,8 @@
 #include <random>
 #include "BacterialPopulations/BacterialPopulation.h"
 #include "Models/Model2D.h"
+#include "Solvers/ForwardEulerSolver.h"
+#include "Solvers/RungeKuttaSolver.h"
 
 INITIALIZE_EASYLOGGINGPP
 
@@ -25,7 +27,7 @@ int main(int argc, char** argv)
     EnvironmentSettings ESettings;
     ESettings.resolution = 0.5;
     ESettings.dimensions = std::vector<double> {10, 10};
-    ESettings.dt = 0.0005;
+    ESettings.dt = 0.008;
     ESettings.dataType = f32;
     ESettings.convolutionType = CT_SERIAL;
 
@@ -36,14 +38,17 @@ int main(int argc, char** argv)
 
     // Setup Ligands
 
-    Ligand ligand1 = {"Ligand1", 0, 10.0, 0.0, 0.0, 5.0};
+    Ligand ligand1 = {"Ligand1", 0, 10, 0.0, 0.0, 10.0};
     ESettings.ligands.push_back(ligand1);
-    //Ligand ligand2 = {"Ligand2", 1, 10.0, 0.0, 0.0, 10.0};
-    //ESettings.ligands.push_back(ligand2);
-    //Ligand ligand3 = {"Ligand3", 2, 20.0, 0.0, 0.0, 15.0};
-    //Ligand ligand4 = {"Ligand4", 3, 20.0, 0.0, 0.05,20.0};
+    Ligand ligand2 = {"Ligand2", 1, 10, 0.0, 0.0, 10.0};
+    ESettings.ligands.push_back(ligand2);
+//    Ligand ligand3 = {"Ligand3", 2, 10.0, 0.0, 0.0, 15.0};
+//    ESettings.ligands.push_back(ligand3);
+//    Ligand ligand4 = {"Ligand4", 3, 10.0, 0.0, 0.05,20.0};
+//    ESettings.ligands.push_back(ligand4);
 
-    Environment2D simEnv(ESettings);
+    RungeKuttaSolver solver;
+    Environment2D simEnv(ESettings, solver);
 
     // Update randomness
     af::setSeed(time(NULL));
@@ -51,20 +56,29 @@ int main(int argc, char** argv)
     std::vector<Bacterial2DPopulation *> populations;
 
     // Setup population 1
-    LigandInteraction interaction11 = {0, 10, 0, 0};
-    //LigandInteraction interaction12 = {1, 0, 0, 0};
+    std::vector<LigandInteraction> ligandInteractions1;
+
+    LigandInteraction interaction11 = {0, 5, 0, 0};
+    ligandInteractions1.push_back(interaction11);
+//    LigandInteraction interaction12 = {1, 5, 0, 0};
+//    ligandInteractions1.push_back(interaction12);
+
     std::vector<LigandInteraction> ligandInteractions = {interaction11};//, interaction12};
     BacterialParameters bactParams = {ligandInteractions, ESettings.dt, 10};
-    Bacterial2DPopulation bacteria(&simEnv, bactParams, 2);
+    Bacterial2DPopulation bacteria(&simEnv, bactParams, 20);
     populations.push_back(&bacteria);
 
     // Setup population 2
+    std::vector<LigandInteraction> ligandInteractions2;
 //    LigandInteraction interaction21 = {0, 0, 0, 0};
-//    LigandInteraction interaction22 = {1, 10, 0, 0};
-//    std::vector<LigandInteraction> ligandInteractions2 = {interaction22};
-//    BacterialParameters bactParams2 = {ligandInteractions2, ESettings.dt, 10};
-//    Bacterial2DPopulation bacteria2(&simEnv, bactParams2, 5);
-//    populations.push_back(&bacteria2);
+//    ligandInteractions2.push_back(interaction21);
+    LigandInteraction interaction22 = {1, 5, 0, 0};
+    ligandInteractions2.push_back(interaction22);
+
+    BacterialParameters bactParams2 = {ligandInteractions2, ESettings.dt, 10};
+    Bacterial2DPopulation bacteria2(&simEnv, bactParams2, 20);
+    populations.push_back(&bacteria2);
+
     // Setup model
 
 

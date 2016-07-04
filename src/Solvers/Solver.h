@@ -9,15 +9,16 @@
 
 using namespace af;
 
-
 class DifferentialEquation {
 public:
-    virtual array rateofchange(array input) = 0;
+    virtual array rateofchange(array &input) = 0;
 };
 
 class Solver {
+protected:
+    Solver() {};
 public:
-    virtual array solveStep(DifferentialEquation eq, double stepsize) = 0;
+    virtual array solveStep(DifferentialEquation &eq, array &inital_state, double stepsize) = 0;
 };
 
 

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <exception>
 
+
 array Environment2D::getLaplacian() {
     GPU_REALTYPE data2 [] =
             {0.0, 1.0, 0.0,
@@ -14,7 +15,7 @@ array Environment2D::getLaplacian() {
     return array(3, 3, data2);
 }
 
-Environment2D::Environment2D(EnvironmentSettings settings) : Environment(settings), diffequation(Diffusion2D(this)) {
+Environment2D::Environment2D(EnvironmentSettings settings, Solver &solver) : Environment(settings, solver) {
     densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
     diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
 
@@ -23,20 +24,20 @@ Environment2D::Environment2D(EnvironmentSettings settings) : Environment(setting
         diffusion_filters(span, span, i) = Environment2D::getLaplacian();
         diffusion_filters(span, span, i) *= settings.ligands[i].diffusionCoefficient/pow(resolution, 2);
     }
-
-    switch (settings.convolutionType) {
-        default:
-        case CT_SERIAL:
-            //density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], settings.dataType);
-            this->calculateTimeStep = std::bind(Environment2D::serialCalculateTimeStep, &this->densities,
-                                                &this->diffusion_filters, this->dt, &this->ligands);
-            break;
-        case CT_AFBATCH:
-            //density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
-            this->calculateTimeStep = std::bind(Environment2D::batchCalculateTimeStep, &this->densities,
-                                                &this->diffusion_filters, this->dt, &this->ligands);
-            break;
-    }
+    diffusionEquation.reset(new Diffusion2D(this));
+//    switch (settings.convolutionType) {
+//        default:
+//        case CT_SERIAL:
+//            //density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], settings.dataType);
+//            this->calculateTimeStep = std::bind(Environment2D::serialCalculateTimeStep, &this->densities,
+//                                                &this->diffusion_filters, this->dt, &this->ligands);
+//            break;
+//        case CT_AFBATCH:
+//            //density_changes =constant(0.0, internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
+//            this->calculateTimeStep = std::bind(Environment2D::batchCalculateTimeStep, &this->densities,
+//                                                &this->diffusion_filters, this->dt, &this->ligands);
+//            break;
+//    }
 
     switch(this->boundaryCondition.type) {
         case BC_NEUMANN:
@@ -236,4 +237,17 @@ void Environment2D::changeLigandConcentrationBy(array concDifferences, array pos
 
 void Environment2D::evalDensities() {
     eval(densities);
+}
+
+array Environment2D::Diffusion2D::rateofchange(array &input) {
+    array changes = constant(0, parent->densities.dims());
+    for (size_t i = 0; i < parent->densities.dims(2); i++) {
+        changes(seq(1, end-1), seq(1, end-1), i) = convolve(input(span, span, i),
+                                                            parent->diffusion_filters(span, span, i))(seq(1, end-1), seq(1, end-1));
+
+        changes(seq(1, end-1), seq(1, end-1), i) += parent->ligands[i].globalProductionRate
+                                                    - parent->ligands[i].globalDegradationRate*input(seq(1, end-1), seq(1, end-1), i);
+    }
+    changes.eval();
+    return changes;
 }

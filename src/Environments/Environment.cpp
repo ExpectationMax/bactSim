@@ -8,7 +8,7 @@
 #include <time.h>
 #include "../progress.h"
 
-Environment::Environment(EnvironmentSettings settings) {
+Environment::Environment(EnvironmentSettings settings, Solver &odesolver): odesolver(&odesolver) {
     this->ligands = settings.ligands;
 
     this->dt = settings.dt;

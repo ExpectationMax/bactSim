@@ -4,7 +4,7 @@
 
 #include "RungeKuttaSolver.h"
 
-array RungeKuttaSolver::solveStep(DifferentialEquation eq, array initial_state, double stepsize) {
+array RungeKuttaSolver::solveStep(DifferentialEquation &eq, array &initial_state, double stepsize) {
     array dxk = eq.rateofchange(initial_state);
     array xa = initial_state + 0.5*stepsize*dxk;
     array dxa = eq.rateofchange(xa);
@@ -12,6 +12,7 @@ array RungeKuttaSolver::solveStep(DifferentialEquation eq, array initial_state, 
     array dxb = eq.rateofchange(xb);
     array xc = initial_state + stepsize*dxb;
     array dxc = eq.rateofchange(xc);
-
-    return initial_state + stepsize/6 * (dxk + 2*(dxa + dxb) + dxc);
+    array result = initial_state + stepsize/6 * (dxk + 2*(dxa + dxb) + dxc);
+    result.eval();
+    return result;
 }

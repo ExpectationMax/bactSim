@@ -27,27 +27,15 @@ class Environment2D : public Environment {
     static void batchCalculateTimeStep(array *densities, array *diffusionFilters, double dt, std::vector<Ligand> *ligands);
     static array getLaplacian();
 
-    class Diffusion2D : DifferentialEquation {
+    class Diffusion2D : public DifferentialEquation {
         Environment2D *parent;
     public:
-        Diffusion2D(Environment2D *par): parent(par){}
-        array rateofchange(array input) {
-            array changes = array(parent->densities.dims());
-            for (size_t i = 0; i < parent->densities.dims(2); i++) {
-                changes(seq(1, end-1), seq(1, end-1), i) = convolve(input(span, span, i),
-                                               parent->diffusion_filters(span, span, i))(seq(1, end-1), seq(1, end-1));
-
-                changes(seq(1, end-1), seq(1, end-1), i) += parent->ligands[i].globalProductionRate
-                                                            - parent->ligands[i].globalDegradationRate*input(seq(1, end-1), seq(1, end-1), i);
-            }
-            changes.eval();
-            return changes;
-        };
+        Diffusion2D(Environment2D *par): parent(par) {}
+        virtual array rateofchange(array &input) override;
     };
 
-    Diffusion2D diffequation;
 public:
-    Environment2D(EnvironmentSettings settings);
+    Environment2D(EnvironmentSettings settings, Solver &solver);
     array getAllDensities() override;
     array getDensity(int) override;
     std::vector<double> getSize() override;

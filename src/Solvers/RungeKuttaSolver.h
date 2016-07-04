@@ -7,8 +7,11 @@
 
 #include "Solver.h"
 
-class RungeKuttaSolver : Solver{
-    array solveStep(DifferentialEquation, double stepsize) override;
+
+class RungeKuttaSolver : public Solver{
+public:
+    RungeKuttaSolver() {};
+    virtual array solveStep(DifferentialEquation &eq, array &initial_state, double stepsize) override;
 };
 
 

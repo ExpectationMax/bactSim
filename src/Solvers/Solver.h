@@ -18,7 +18,7 @@ class Solver {
 protected:
     Solver() {};
 public:
-    virtual array solveStep(DifferentialEquation &eq, array &inital_state, double stepsize) = 0;
+    virtual array solveStep(DifferentialEquation &eq, array &inital_state, double stepsize) const = 0;
 };
 
 

@@ -56,21 +56,6 @@ void Bacterial2DPopulation::applySolidBoundary(int maxx, int maxy, array &xpos, 
     tumbling = tumbling || max(outofrange, 1);
 };
 
-void Bacterial2DPopulation::simulateTimestep() {
-    validatePositions();
-    updateInterpolatedPositions();
-    array randomizer = af::randu(xpos.dims(0));
-    array sorted_randomizer, shuffled_indices;
-    sort(sorted_randomizer, shuffled_indices, randomizer, 0);
-    for(auto i = 0; i < xpos.dims(0); i++) {
-        array index = shuffled_indices(i);
-        interactWithEnv(index);
-    }
-    //env->evalDensities();
-    //simulate();
-    move();
-}
-
 void Bacterial2DPopulation::liveTimestep() {
     simulate();
     move();

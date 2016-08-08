@@ -3,8 +3,8 @@
 //
 
 #include "Model2D.h"
-
 #include <random>
+#include <H5Cpp.h>
 
 Model2D::Model2D(Environment2D *environment, std::vector<Bacterial2DPopulation *> populations):
         env(environment), bacterialPopulations(populations) {
@@ -28,7 +28,6 @@ Model2D::Model2D(Environment2D *environment, std::vector<Bacterial2DPopulation *
         }
     }
 }
-
 
 void Model2D::simulateTimestep() {
     std::random_shuffle(&callOrder[0], &callOrder[totalBacteria-1]);
@@ -65,4 +64,7 @@ void Model2D::visualize() {
     }
 
     populationsWin->show();
+}
+
+void Model2D::setupStorage(std::string path) {
 }

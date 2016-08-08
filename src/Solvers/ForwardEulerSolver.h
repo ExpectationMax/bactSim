@@ -9,7 +9,7 @@
 
 class ForwardEulerSolver : public Solver{
 public:
-    virtual array solveStep(DifferentialEquation &eq, array &inital_state, double stepsize) override;
+    virtual array solveStep(DifferentialEquation &eq, array &inital_state, double stepsize) const override;
 };
 
 

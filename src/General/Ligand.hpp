@@ -5,20 +5,26 @@
 #ifndef CHEMOHYBRID_GPU_LIGANDS_H
 #define CHEMOHYBRID_GPU_LIGANDS_H
 
+#ifndef __H5Cpp_H
+#include <H5Cpp.h>
+#endif
+
 struct Ligand {
     std::string name;
-    int ligandId;
+    unsigned int ligandId;
     double initialConcentration;
     double globalProductionRate;
     double globalDegradationRate;
     double diffusionCoefficient;
 };
 
-struct LigandInteraction {
+class LigandInteraction {
+public:
     int ligandId;
     double uptakeRate;
     double productionRate;
     double Kd;
+    H5::CompType getH5type();
 };
 
 #endif //CHEMOHYBRID_GPU_LIGANDS_H

@@ -1,6 +1,12 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 project(chemohybrid-gpu)
 
+# HDF5 dependency for saving and loading
+FIND_PACKAGE(HDF5Cpp REQUIRED)
+INCLUDE_DIRECTORIES(${LIBHDF5_INCLUDE_DIR})
+ADD_DEFINITIONS(${HDF5_DEFINITIONS})
+#set(LIBRARIES ${HDF5_CXX_LIBRARIES})
+
 # Find the ArrayFire package.
 FIND_PACKAGE(ArrayFire REQUIRED)
 # If ArrayFire is found, the following variables will be defined:
@@ -34,7 +40,7 @@ if(NO_GRAPHICS)
     add_definitions(-DNO_GRAPHICS)
 endif()
 
-set(SOURCE Environments/Environment2D.cpp Environments/Environment.cpp BacterialPopulations/BacterialPopulation.cpp Models/Model2D.h Models/Model2D.cpp Solvers/Solver.h Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp )
+set(SOURCE General/Ligand.hpp General/Ligand.cpp Environments/Environment2D.cpp Environments/Environment.cpp BacterialPopulations/BacterialPopulation.cpp Models/Model2D.h Models/Model2D.cpp Solvers/Solver.h Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp )
 
 # There are several ways of compiling source code in CMake. In most cases you
 # specify the source files to an ADD_EXCUTABLE call. Because we intend to
@@ -56,7 +62,7 @@ endif()
 if(${ArrayFire_CPU_FOUND})
     MESSAGE(STATUS "ArrayFire CPU backend found. Enabling CPU benchmark")
     ADD_EXECUTABLE(afdiff-cpu $<TARGET_OBJECTS:AFDIFF_CORE>)
-    TARGET_LINK_LIBRARIES(afdiff-cpu ${ArrayFire_CPU_LIBRARIES}
+    TARGET_LINK_LIBRARIES(afdiff-cpu ${LIBHDF5_LIBRARIES} ${ArrayFire_CPU_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT})
 ENDIF()
 
@@ -67,8 +73,8 @@ IF(${ArrayFire_OpenCL_FOUND} AND ${OpenCL_FOUND})
     # We need to find OpenCL as transitive linking is disabled on some OSes
     MESSAGE(STATUS "ArrayFire OpenCL backend found. Enabling OpenCL benchmark")
     ADD_EXECUTABLE(afdiff-opencl $<TARGET_OBJECTS:AFDIFF_CORE>)
-    TARGET_LINK_LIBRARIES(afdiff-opencl ${ArrayFire_OpenCL_LIBRARIES}
-        ${OpenCL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+    TARGET_LINK_LIBRARIES(afdiff-opencl ${LIBHDF5_LIBRARIES} ${ArrayFire_OpenCL_LIBRARIES}
+        ${OpenCL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 ENDIF()
 
 # ArrayFire CUDA backend
@@ -80,9 +86,6 @@ IF(${ArrayFire_CUDA_FOUND} AND ${CUDA_FOUND})
     MESSAGE(STATUS ${CUDA_TOOLKIT_ROOT_DIR})
     MESSAGE(STATUS "ArrayFire CUDA found. Enabling CUDA benchmark")
     ADD_EXECUTABLE(afdiff-cuda $<TARGET_OBJECTS:AFDIFF_CORE>)
-    TARGET_LINK_LIBRARIES(afdiff-cuda ${ArrayFire_CUDA_LIBRARIES}
+    TARGET_LINK_LIBRARIES(afdiff-cuda ${LIBHDF5_LIBRARIES} ${ArrayFire_CUDA_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT} ${CUDA_LIBRARIES} ${NVVM_LIB})
 ENDIF()
-
-
-

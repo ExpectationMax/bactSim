@@ -3,10 +3,6 @@
 //
 
 #include "Environment.h"
-#include <exception>
-#include "../easylogging++.h"
-#include <time.h>
-#include "../progress.h"
 
 Environment::Environment(EnvironmentSettings settings, Solver &odesolver): odesolver(&odesolver) {
     this->ligands = settings.ligands;
@@ -36,31 +32,12 @@ Environment::Environment(EnvironmentSettings settings, Solver &odesolver): odeso
     }
 }
 
-void Environment::printInternals() {
-    af_print(this->densities);
-    af_print(this->diffusion_filters);
-}
-
-std::vector<Ligand> Environment::getLigands() {
-    return this->ligands;
-}
-
-void Environment::simulate(double advanceTime) {
-    timer t = timer::start();
-    unsigned iter = 0;
-    double normalizer = max<double>(this->densities);
-    while (progress(iter, t, advanceTime)) {
-        this->simulateTimeStep();
-        iter++;
-    }
-}
 #ifndef NO_GRAPHICS
-
 void Environment::setupVisualizationWindow(Window &win) {
     visualizationWin = &win;
     numLigands = this->ligands.size();
-    rows = ceil(numLigands / 2);
     if(numLigands > 1)
+        rows = ceil(numLigands / 2);
         visualizationWin->grid(rows, 2);
 }
 
@@ -93,7 +70,3 @@ array Environment::getLigandMapping(std::vector<int> ligandIds) {
     }
     return mapping;
 }
-
-
-
-

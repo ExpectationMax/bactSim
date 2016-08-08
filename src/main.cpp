@@ -1,14 +1,10 @@
 #include <arrayfire.h>
-#include "easylogging++.h"
-
 #include "Environments/Environment2D.h"
 #include <random>
 #include "BacterialPopulations/BacterialPopulation.h"
 #include "Models/Model2D.h"
 #include "Solvers/ForwardEulerSolver.h"
 #include "Solvers/RungeKuttaSolver.h"
-
-INITIALIZE_EASYLOGGINGPP
 
 int main(int argc, char** argv)
 {
@@ -29,7 +25,6 @@ int main(int argc, char** argv)
     ESettings.dimensions = std::vector<double> {10, 10};
     ESettings.dt = 0.008;
     ESettings.dataType = f32;
-    ESettings.convolutionType = CT_SERIAL;
 
     BoundaryCondition boundaryCondition(BC_PERIODIC);
     boundaryCondition.xpos = 0;
@@ -80,9 +75,8 @@ int main(int argc, char** argv)
     populations.push_back(&bacteria2);
 
     // Setup model
-
-
     Model2D mymodel(&simEnv, populations);
+    mymodel.setupStorage("test.h5");
 
     // Enable visualization
 #ifndef NO_GRAPHICS
@@ -92,9 +86,7 @@ int main(int argc, char** argv)
     mymodel.setupVisualizationWindows(diffusionwindow, populationwindow);
 #endif
 
-
     time_t start= time(NULL);
-//    simEnv.test();
 
     for(int i =0; i < 20/ESettings.dt; i++) {
         mymodel.simulateTimestep();
@@ -102,33 +94,6 @@ int main(int argc, char** argv)
         mymodel.visualize();
 #endif
     }
-
-//    Window bacteriaWin(512, 512,"Simulation of bacterial population");
-//    std::cout << time(NULL)-start;
-//    for(int i =0; i < 20/ESettings.dt; i++) {
-//        double normalizer = max<double>(simEnv.getAllDensities());
-//        bacteria.simulateTimestep();
-//        bacteriaWin.scatter(bacteria.getXpos(), bacteria.getYpos());
-//        simEnv.evalDensities();
-//
-//        simEnv.simulateTimeStep();
-//        simEnv.visualize(normalizer);
-//
-//        if(i % 200 == 0){
-//            std::cout << pow((double)(time(NULL)-start)/200.0, -1) << " iterations per second" << std::endl;
-//            start = time(NULL);
-//        }
-//
-//    }
-
-    // simEnv.test();
-    // simEnv.printInternals();
-
-    // array test = (randomDistribution(1000000) >= 0.5).as(b8);
-
-    // printf("%f\n", sum<float>(test)/1000000);
-
-    // simEnv.test();
 
     return 0;
 }

@@ -23,7 +23,9 @@
 
 using namespace af;
 using std::unique_ptr;
+using std::shared_ptr;
 
+// Define BoundaryConditions, this does not contain the implementation of the condition but merely its definition.
 enum BoundaryConditionType {
     BC_PERIODIC,
     BC_DIRICHELET,
@@ -58,12 +60,6 @@ public:
     double xneg, xpos, yneg, ypos, zneg, zpos = 0;
 };
 
-enum ConvolutionType {
-    CT_AFBATCH,
-    CT_SERIAL
-};
-
-
 struct EnvironmentSettings {
     // Definition of Size
     double resolution;
@@ -76,9 +72,6 @@ struct EnvironmentSettings {
     GPU_REALTYPE dt;
     af_dtype dataType;
     BoundaryCondition boundaryCondition;
-    ConvolutionType convolutionType = CT_SERIAL;
-
-    // Visualization parameters
 };
 
 
@@ -107,29 +100,20 @@ protected:
         densities = odesolver->solveStep(*diffusionEquation, densities, dt);
     }
 
-    static void batchCalculateTimeStep(array densities, array densityChange, array diffusionFilters, double dt);
-
     Solver *odesolver;
     unique_ptr<DifferentialEquation> diffusionEquation = NULL;
 
     Environment(EnvironmentSettings settings, Solver &odesolver);
 public:
-    std::vector<Ligand> getLigands();
-    void printInternals();
-    void simulate(double advanceTime);
     void simulateTimeStep(void);
 #ifndef NO_GRAPHICS
     void visualize(double normalizer);
 #endif
     virtual std::vector<double> getSize() = 0;
-    //virtual void simulateTimeStep() = 0;
     virtual array getDensity(int) = 0;
     virtual array getAllDensities() = 0;
-    //void test();
     array getLigandMapping(std::vector<int> ligands);
-
     void setupVisualizationWindow(Window &win);
-
     BoundaryConditionType getBoundaryConditionType() { return boundaryCondition.type; }
 };
 

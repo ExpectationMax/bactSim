@@ -23,8 +23,6 @@ class Environment2D : public Environment {
     static void applyNeumannBC(array *input, double resolution, BoundaryCondition *bc);
     static void applyDericheletBC(array *input,  BoundaryCondition *bc);
     static void applyPeriodicBC(array *input);
-    static void serialCalculateTimeStep(array *densities, array *diffusionFilters, double dt, std::vector<Ligand> *ligands);
-    static void batchCalculateTimeStep(array *densities, array *diffusionFilters, double dt, std::vector<Ligand> *ligands);
     static array getLaplacian();
 
     class Diffusion2D : public DifferentialEquation {
@@ -39,7 +37,6 @@ public:
     array getAllDensities() override;
     array getDensity(int) override;
     std::vector<double> getSize() override;
-    void test();
 
     array getInterpolatedPositions(array &xpos, array &ypos);
 

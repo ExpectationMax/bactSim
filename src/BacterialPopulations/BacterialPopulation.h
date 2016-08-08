@@ -29,7 +29,6 @@ protected:
     array ypos;
     array angle;
     array tumbling;
-    array sensed_concentrations;
 
     array Kds;
     array uptakeRates;
@@ -107,7 +106,9 @@ public:
 
     void interactWithEnv(int individual);
 
-    void simulateTimestep();
+    void interactWithEnv(array individuals);
+
+    void interactWithEnvPos(array pos);
 
     void simulate();
 
@@ -118,10 +119,6 @@ public:
     array getYpos() { return ypos; }
 
     void liveTimestep();
-
-    void interactWithEnvPos(array pos);
-
-    void interactWithEnv(array individuals);
 };
 
 

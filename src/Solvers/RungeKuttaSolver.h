@@ -11,7 +11,7 @@
 class RungeKuttaSolver : public Solver{
 public:
     RungeKuttaSolver() {};
-    virtual array solveStep(DifferentialEquation &eq, array &initial_state, double stepsize) override;
+    virtual array solveStep(DifferentialEquation &eq, array &initial_state, double stepsize) const override;
 };
 
 

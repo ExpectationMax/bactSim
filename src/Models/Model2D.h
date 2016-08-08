@@ -33,6 +33,8 @@ public:
 
     void setupVisualizationWindows(Window &winDiff, Window &winPop);
 
+    void setupStorage(std::string path);
+
     void visualize();
 };
 

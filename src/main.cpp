@@ -1,7 +1,7 @@
 #include <arrayfire.h>
 #include "Environments/Environment2D.h"
 #include <random>
-#include "BacterialPopulations/BacterialPopulation.h"
+#include "BacterialPopulations/ExamplePopulation.h"
 #include "Models/Model2D.h"
 #include "Solvers/ForwardEulerSolver.h"
 #include "Solvers/RungeKuttaSolver.h"
@@ -49,30 +49,30 @@ int main(int argc, char** argv)
     // Update randomness
     af::setSeed(time(NULL));
 
-    std::vector<shared_ptr<Bacterial2DPopulation>> populations;
+    std::vector<shared_ptr<BacterialPopulation>> populations;
 
     // Setup population 1
     std::vector<LigandInteraction> ligandInteractions1;
 
-    LigandInteraction interaction11 = {0, 5, 0, 0};
+    LigandInteraction interaction11 = {0, 5, 0, 0, 0};
     ligandInteractions1.push_back(interaction11);
-    LigandInteraction interaction12 = {1, 0, 5, 0};
+    LigandInteraction interaction12 = {1, 0, 5, 0, 0};
     ligandInteractions1.push_back(interaction12);
 
     std::vector<LigandInteraction> ligandInteractions = {interaction11};//, interaction12};
     BacterialParameters bactParams = {"Ligand1 eater", ligandInteractions, ESettings.dt, 10};
-    populations.push_back(shared_ptr<Bacterial2DPopulation>(new Bacterial2DPopulation(simEnv, bactParams, 20)));
+    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new ExamplePopulation(simEnv, bactParams, 20))));
 
     // Setup population 2
     std::vector<LigandInteraction> ligandInteractions2;
 //    LigandInteraction interaction21 = {0, 0, 0, 0};
 //    ligandInteractions2.push_back(interaction21);
-    LigandInteraction interaction22 = {1, 10, 0, 0};
+    LigandInteraction interaction22 = {1, 10, 0, 0, 0};
     ligandInteractions2.push_back(interaction22);
 
 
     BacterialParameters bactParams2 = {"Ligand2 eater", ligandInteractions2, ESettings.dt, 10};
-    populations.push_back(shared_ptr<Bacterial2DPopulation>(new Bacterial2DPopulation(simEnv, bactParams2, 20)));
+    populations.push_back(shared_ptr<BacterialPopulation>(new ExamplePopulation(simEnv, bactParams2, 20)));
 
     // Setup model
     Model2D mymodel(simEnv, populations);

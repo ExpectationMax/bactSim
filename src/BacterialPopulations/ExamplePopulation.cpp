@@ -1,18 +1,20 @@
 //
-// Created by Max Horn on 22/04/16.
+// Created by Max Horn on 10/08/16.
 //
 
-#include "BacterialPopulation.h"
+#include "ExamplePopulation.h"
 
-Bacterial2DPopulation::Bacterial2DPopulation(shared_ptr<Environment2D> env, BacterialParameters params) : env(env), params(params) {
+ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> env, BacterialParameters params) : env(env), params(params) {
     std::vector<int> ligandIds;
-    Kds = array((dim_t)params.interactions.size());
+    Koff = array((dim_t)params.interactions.size());
+    Kon = array((dim_t)params.interactions.size());
     uptakeRates  = array((dim_t)params.interactions.size());
     productionRates = array((dim_t)params.interactions.size());
 
     for(size_t i = 0; i < params.interactions.size(); i++) {
         ligandIds.push_back(params.interactions[i].ligandId);
-        Kds(i) = params.interactions[i].Kd;
+        Koff(i) = params.interactions[i].Koff;
+        Kon(i) = params.interactions[i].Kon;
         uptakeRates(i) = params.interactions[i].uptakeRate;
         productionRates(i) = params.interactions[i].productionRate;
     }
@@ -23,31 +25,31 @@ Bacterial2DPopulation::Bacterial2DPopulation(shared_ptr<Environment2D> env, Bact
 
     switch(env->getBoundaryConditionType()) {
         case BC_PERIODIC:
-            validatePositions = std::bind(Bacterial2DPopulation::applyPeriodicBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos));
+            validatePositions = std::bind(ExamplePopulation::applyPeriodicBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos));
             break;
         default:
-            validatePositions = std::bind(Bacterial2DPopulation::applySolidBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos), std::ref(tumbling));
+            validatePositions = std::bind(ExamplePopulation::applySolidBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos), std::ref(tumbling));
     }
 }
 
-void Bacterial2DPopulation::interactWithEnv(int individual) {
+void ExamplePopulation::interactWithEnv(int individual) {
     array pos = interpolatedPositions(span, individual);
     interactWithEnvPos(pos);
 }
 
-void Bacterial2DPopulation::interactWithEnv(array individuals) {
+void ExamplePopulation::interactWithEnv(array individuals) {
     array pos = interpolatedPositions(span, individuals);
     interactWithEnvPos(pos);
 }
 
-void Bacterial2DPopulation::interactWithEnvPos(array pos) {
+void ExamplePopulation::interactWithEnvPos(array pos) {
     array concentrations = env->getLigandConcentrations(pos, ligandmapping);
     array concentrationChange = -concentrations*uptakeRates*params.dt + productionRates*params.dt;
     env->changeLigandConcentrationBy(concentrationChange, pos, ligandmapping);
 }
 
 
-void Bacterial2DPopulation::applyPeriodicBoundary(int maxx, int maxy, array &xpos, array &ypos) {
+void ExamplePopulation::applyPeriodicBoundary(int maxx, int maxy, array &xpos, array &ypos) {
     // x axis
     xpos -= (xpos > maxx) * xpos;
 
@@ -59,7 +61,7 @@ void Bacterial2DPopulation::applyPeriodicBoundary(int maxx, int maxy, array &xpo
     ypos += (ypos < 0) * (-ypos + maxy);
 };
 
-void Bacterial2DPopulation::applySolidBoundary(int maxx, int maxy, array &xpos, array &ypos, array &tumbling) {
+void ExamplePopulation::applySolidBoundary(int maxx, int maxy, array &xpos, array &ypos, array &tumbling) {
     // Shift bacteria that are out of range back into field
     // x axis
     array outofrange = array(xpos.dims(0), 4, b8);
@@ -81,28 +83,28 @@ void Bacterial2DPopulation::applySolidBoundary(int maxx, int maxy, array &xpos, 
     tumbling = tumbling || max(outofrange, 1);
 };
 
-void Bacterial2DPopulation::liveTimestep() {
+void ExamplePopulation::liveTimestep() {
     simulate();
     move();
     validatePositions();
     updateInterpolatedPositions();
 }
 
-void Bacterial2DPopulation::simulate() {
+void ExamplePopulation::simulate() {
     array concentrations = env->getLigandConcentrations(interpolatedPositions, ligandmapping);
 }
 
-void Bacterial2DPopulation::updateInterpolatedPositions() {
+void ExamplePopulation::updateInterpolatedPositions() {
     interpolatedPositions = env->getInterpolatedPositions(xpos, ypos);
 }
 
 
-void Bacterial2DPopulation::move() {
+void ExamplePopulation::move() {
     xpos += !tumbling*af::cos(angle)*params.swimmSpeed*params.dt;
     ypos += !tumbling*af::sin(angle)*params.swimmSpeed*params.dt;
 }
 
-void Bacterial2DPopulation::setupStorage(shared_ptr<H5::Group> storage) {
+void ExamplePopulation::setupStorage(shared_ptr<H5::Group> storage) {
     // Create group with name of bacterial population
     this->storage.reset(new H5::Group(storage->createGroup(this->params.name)));
 
@@ -141,7 +143,7 @@ void Bacterial2DPopulation::setupStorage(shared_ptr<H5::Group> storage) {
             new H5::DataSet(this->storage->createDataSet("tumbling", H5::PredType::STD_I8LE, bactSpace, properties)));
 }
 
-void Bacterial2DPopulation::save() {
+void ExamplePopulation::save() {
     if(!this->storage)
         return;
 
@@ -195,7 +197,7 @@ void Bacterial2DPopulation::save() {
 }
 
 
-void Bacterial2DPopulation::closeStorage() {
+void ExamplePopulation::closeStorage() {
     // Call to reset also calls destructor
     this->xposStorage.reset();
     this->yposStorage.reset();
@@ -206,44 +208,36 @@ void Bacterial2DPopulation::closeStorage() {
     this->storage.reset();
 }
 
-void Bacterial2DPopulation::initializeAngleAndTumbiling() {
+void ExamplePopulation::randomizeAngleAndTumbiling() {
     angle = 2 * af::Pi * randu(size);
     tumbling = (randu(size)>= 0.5).as(b8);
 }
 
-void Bacterial2DPopulation::setPositions(array x, array y) {
+void ExamplePopulation::setPositions(array x, array y) {
     xpos = x;
     ypos = y;
     validatePositions();
     updateInterpolatedPositions();
 }
 
-Bacterial2DPopulation::Bacterial2DPopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters,
-                                             int nBacteria) :
-        Bacterial2DPopulation(Env, parameters) {
+ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters,
+                                     int nBacteria) :
+        ExamplePopulation(Env, parameters) {
     size = nBacteria;
 
-    initializeAngleAndTumbiling();
+    randomizeAngleAndTumbiling();
 
     array randx = randu(size) * maxx;
     array randy = randu(size) * maxy;
     setPositions(randx, randy);
 }
 
-Bacterial2DPopulation::Bacterial2DPopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters,
-                                             int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy) :
-        Bacterial2DPopulation(Env, parameters) {
+ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters,
+                                     int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy) :
+        ExamplePopulation(Env, parameters) {
     size = nBacteria;
 
-    initializeAngleAndTumbiling();
+    randomizeAngleAndTumbiling();
 
     setPositions(array(size, initialx), array(size, initialy));
 }
-
-
-
-
-
-
-
-

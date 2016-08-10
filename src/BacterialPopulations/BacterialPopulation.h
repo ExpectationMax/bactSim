@@ -11,80 +11,60 @@
 #import "General/Ligand.hpp"
 #import <map>
 
-struct BacterialParameters {
-    std::string name;
-    std::vector<LigandInteraction> interactions;
-    GPU_REALTYPE dt;
-    GPU_REALTYPE swimmSpeed;
-};
+#define REGISTER_DEC_TYPE(NAME) \
+    static DerivedRegister<NAME> reg
 
-class Bacterial2DPopulation {
-protected:
-    shared_ptr<Environment2D> env;
-    array interpolatedPositions;
-    int maxx;
-    int maxy;
-    int size;
-    BacterialParameters params;
-    array xpos;
-    array ypos;
-    array angle;
-    array tumbling;
+#define REGISTER_DEF_TYPE(NAME) \
+    DerivedRegister<NAME> NAME::reg(#NAME)
 
-    array Kds;
-    array uptakeRates;
-    array productionRates;
 
-    array ligandmapping;
-
-    std::function<void(void)> validatePositions;
-
-    Bacterial2DPopulation(shared_ptr<Environment2D> env, BacterialParameters params);;
-
-    void initializeAngleAndTumbiling();
-
-    void setPositions(array x, array y);
-
-    void updateInterpolatedPositions();
-
-    unique_ptr<H5::Group> storage;
-    unique_ptr<H5::DataSet> xposStorage;
-    unique_ptr<H5::DataSet> yposStorage;
-    unique_ptr<H5::DataSet> angleStorage;
-    unique_ptr<H5::DataSet> tumblingStorage;
-
+class BacterialPopulation {
 public:
-    static void applyPeriodicBoundary(int maxx, int maxy, array &xpos, array &ypos);
-    static void applySolidBoundary(int maxx, int maxy, array &xpos, array &ypos, array &tumbling);
+    virtual void interactWithEnv(int individual) = 0;
+    virtual void interactWithEnv(array individuals) = 0;
 
-    Bacterial2DPopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters, int nBacteria);
+    virtual int getSize() = 0;
+    virtual array getXpos() = 0;
+    virtual array getYpos() = 0;
 
-    Bacterial2DPopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters, int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy);
+    virtual void liveTimestep() = 0;
 
-    void move();
-
-    void interactWithEnv(int individual);
-
-    void interactWithEnv(array individuals);
-
-    void interactWithEnvPos(array pos);
-
-    void simulate();
-
-    int getSize() { return size; }
-
-    array getXpos() { return xpos; }
-
-    array getYpos() { return ypos; }
-
-    void liveTimestep();
-
-    void setupStorage(shared_ptr<H5::Group> storage);
-
-    void closeStorage();
-
-    void save();
+    virtual void setupStorage(shared_ptr<H5::Group> storage) = 0;
+    virtual void save() = 0;
+    virtual void closeStorage() = 0;
 };
 
+
+// This allows bacterial populations to be registered and later initialized based on a type string
+template<typename T> BacterialPopulation * createT(H5::Group group) { return new T(group); }
+
+struct BacteriaFactory {
+    typedef std::map<std::string, BacterialPopulation*(*)()> map_type;
+
+    static BacterialPopulation * createInstance(std::string const& s) {
+        map_type::iterator it = getMap()->find(s);
+        if(it == getMap()->end())
+            return 0;
+        return it->second();
+    }
+
+protected:
+    static map_type * getMap() {
+        // never delete'ed. (exist until program termination)
+        // because we can't guarantee correct destruction order
+        if(!map) { map = new map_type; }
+        return map;
+    }
+
+private:
+    static map_type * map;
+};
+
+template<typename T>
+struct DerivedRegister : BacteriaFactory {
+    DerivedRegister(std::string const& s) {
+        getMap()->insert(std::make_pair(s, &createT<T>));
+    }
+};
 
 #endif //CHEMOHYBRID_GPU_BACTERIALPOPULATION_H

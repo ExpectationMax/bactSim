@@ -23,7 +23,8 @@ public:
     int ligandId;
     double uptakeRate;
     double productionRate;
-    double Kd;
+    double Kon;
+    double Koff;
     static H5::CompType getH5type();
 };
 

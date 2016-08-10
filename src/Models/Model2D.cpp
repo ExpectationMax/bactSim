@@ -66,5 +66,41 @@ void Model2D::visualize() {
     populationsWin->show();
 }
 
+void Model2D::setupStorage(H5::CommonFG &output) {
+
+    // Let environment initialize its group
+    unique_ptr<H5::Group> envGroup(new H5::Group(output.createGroup("Environment")));
+    this->env->setupStorage(std::move(envGroup));
+
+    // Let the bacterial populations create their groups below the populations group
+    // As these functions should not really store the the Group but only use it in the setupStorage function we must not bother about ownership
+    shared_ptr<H5::Group> popGroup(new H5::Group(output.createGroup("Populations")));
+    for(auto population: this->bacterialPopulations) {
+        population->setupStorage(popGroup);
+    }
+}
+
+void Model2D::closeStorage() {
+    for(auto population: this->bacterialPopulations) {
+        population->closeStorage();
+    }
+    this->env->closeStorage();
+
+    if(this->storage)
+        this->storage->close();
+}
+
 void Model2D::setupStorage(std::string path) {
+    this->storage.reset(new H5::H5File(path, H5F_ACC_TRUNC));
+    this->setupStorage(*this->storage.get());
+}
+
+void Model2D::save() {
+    if(!this->storage)
+        return;
+
+    this->env->save();
+    for(auto population: this->bacterialPopulations) {
+        population->save();
+    }
 }

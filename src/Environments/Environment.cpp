@@ -17,7 +17,7 @@ Environment::Environment(EnvironmentSettings settings, Solver &odesolver): odeso
     for (auto i = 0; i < settings.dimensions.size(); i++) {
         // Invert the order of axis, as providing dimensions in format zyx seems unituitive
         // closest position should be 1.5 * border size to outer border
-        internalDim[settings.dimensions.size() - i - 1] = (dim_t) 3 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
+        internalDim[settings.dimensions.size() - i - 1] = (dim_t) 2 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
     }
 
     // Last dimension is the number of ligands
@@ -25,6 +25,7 @@ Environment::Environment(EnvironmentSettings settings, Solver &odesolver): odeso
 
     this->internal_dimensions = internalDim;
 
+    // Store mapping of ligands on gpu
     ligandMapping = constant(0, ligands.size(), 2, u16);
     for(size_t i = 0; i < ligands.size(); i++) {
         ligandMapping(i, LIGANDID) = ligands[i].ligandId;

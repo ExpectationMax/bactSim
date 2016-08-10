@@ -6,7 +6,10 @@
 #define CHEMOHYBRID_GPU_ENVIRONMENT2D_H
 
 #include "Environment.h"
+#include <vector>
 #include "Solvers/Solver.h"
+#include <H5Cpp.h>
+
 
 #define POS_LEFT 0
 #define POS_RIGHT 1
@@ -32,6 +35,9 @@ class Environment2D : public Environment {
         virtual array rateofchange(array &input) override;
     };
 
+    unique_ptr<H5::Group> storage;
+    std::map<unsigned int, unique_ptr<H5::DataSet>> ligands_storage;
+
 public:
     Environment2D(EnvironmentSettings settings, Solver &solver);
     array getAllDensities() override;
@@ -45,6 +51,12 @@ public:
     array getLigandConcentrations(array posAndWeights, array ligands);
 
     void evalDensities();
+
+    void closeStorage();
+
+    void setupStorage(unique_ptr<H5::Group> storage);
+
+    void save();
 };
 
 #endif //CHEMOHYBRID_GPU_ENVIRONMENT2D_H

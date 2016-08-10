@@ -23,7 +23,7 @@ class Model2D {
     int totalBacteria = 0;
     bacteriumRef *allBacteria = NULL;
     unsigned int *callOrder = NULL;
-
+    unique_ptr<H5::H5File> storage;
 public:
     Model2D(Environment2D *environment, std::vector<Bacterial2DPopulation *> populations);
 
@@ -36,6 +36,12 @@ public:
     void setupStorage(std::string path);
 
     void visualize();
+
+    void setupStorage(H5::CommonFG &output);
+
+    void closeStorage();
+
+    void save();
 };
 
 

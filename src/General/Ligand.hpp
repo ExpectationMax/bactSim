@@ -11,7 +11,7 @@
 
 struct Ligand {
     std::string name;
-    unsigned int ligandId;
+    uint8_t ligandId;
     double initialConcentration;
     double globalProductionRate;
     double globalDegradationRate;
@@ -24,7 +24,7 @@ public:
     double uptakeRate;
     double productionRate;
     double Kd;
-    H5::CompType getH5type();
+    static H5::CompType getH5type();
 };
 
 #endif //CHEMOHYBRID_GPU_LIGANDS_H

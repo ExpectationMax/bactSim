@@ -12,6 +12,7 @@
 #import <map>
 
 struct BacterialParameters {
+    std::string name;
     std::vector<LigandInteraction> interactions;
     GPU_REALTYPE dt;
     GPU_REALTYPE swimmSpeed;
@@ -38,31 +39,7 @@ protected:
 
     std::function<void(void)> validatePositions;
 
-    Bacterial2DPopulation(Environment2D *env, BacterialParameters params) : env(env), params(params) {
-        std::vector<int> ligandIds;
-        Kds = array((dim_t)params.interactions.size());
-        uptakeRates  = array((dim_t)params.interactions.size());
-        productionRates = array((dim_t)params.interactions.size());
-
-        for(size_t i = 0; i < params.interactions.size(); i++) {
-            ligandIds.push_back(params.interactions[i].ligandId);
-            Kds(i) = params.interactions[i].Kd;
-            uptakeRates(i) = params.interactions[i].uptakeRate;
-            productionRates(i) = params.interactions[i].productionRate;
-        }
-        ligandmapping = env->getLigandMapping(ligandIds);
-        std::vector<double> size = env->getSize();
-        maxx = size[0];
-        maxy = size[1];
-
-        switch(env->getBoundaryConditionType()) {
-            case BC_PERIODIC:
-                validatePositions = std::bind(Bacterial2DPopulation::applyPeriodicBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos));
-                break;
-            default:
-                validatePositions = std::bind(Bacterial2DPopulation::applySolidBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos), std::ref(tumbling));
-        }
-    };
+    Bacterial2DPopulation(Environment2D *env, BacterialParameters params);;
 
     void initializeAngleAndTumbiling() {
         angle = 2 * af::Pi * randu(size);
@@ -77,6 +54,12 @@ protected:
     }
 
     void updateInterpolatedPositions();
+
+    unique_ptr<H5::Group> storage;
+    unique_ptr<H5::DataSet> xposStorage;
+    unique_ptr<H5::DataSet> yposStorage;
+    unique_ptr<H5::DataSet> angleStorage;
+    unique_ptr<H5::DataSet> tumblingStorage;
 
 public:
     static void applyPeriodicBoundary(int maxx, int maxy, array &xpos, array &ypos);
@@ -119,6 +102,12 @@ public:
     array getYpos() { return ypos; }
 
     void liveTimestep();
+
+    void setupStorage(shared_ptr<H5::Group> storage);
+
+    void closeStorage();
+
+    void save();
 };
 
 

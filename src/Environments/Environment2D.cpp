@@ -3,8 +3,7 @@
 //
 
 #include "Environment2D.h"
-#include <iostream>
-#include <exception>
+#include <ios>
 
 
 array Environment2D::getLaplacian() {
@@ -49,9 +48,9 @@ std::vector<double> Environment2D::getSize() {
 
     dim4 dims = this->densities.dims();
     // x
-    size.push_back((dims[1] - 3* BORDER_SIZE)*resolution);
+    size.push_back((dims[1] - 2* BORDER_SIZE)*resolution);
     // y
-    size.push_back((dims[0] - 3* BORDER_SIZE)*resolution);
+    size.push_back((dims[0] - 2* BORDER_SIZE)*resolution);
     return size;
 }
 
@@ -99,8 +98,8 @@ array Environment2D::getDensity(int ligandId) {
 }
 
 array Environment2D::getInterpolatedPositions(array &xpos, array &ypos) {
-    array xindex = xpos/this->resolution + 1.5*BORDER_SIZE;
-    array yindex = ypos/this->resolution + 1.5*BORDER_SIZE;
+    array xindex = xpos/this->resolution + BORDER_SIZE;
+    array yindex = ypos/this->resolution + BORDER_SIZE;
 
     xindex = moddims(xindex, 1, xindex.dims(0));
     yindex = moddims(yindex, 1, yindex.dims(0));
@@ -166,6 +165,84 @@ void Environment2D::changeLigandConcentrationBy(array concDifferences, array pos
 void Environment2D::evalDensities() {
     eval(densities);
 }
+
+void Environment2D::setupStorage(unique_ptr<H5::Group> storage) {
+    // Store reference to group
+    this->storage = std::move(storage);
+
+    // Setup dimensions of datasets
+    // TODO: this is the size in units and not the true dimension
+    std::vector<hsize_t> dims;
+    for(auto dim: this->internal_dimensions) {
+        dims.push_back(static_cast<hsize_t>(dim)-2*BORDER_SIZE);
+    }
+
+    hsize_t initial_dims[3] = {0, dims[0], dims[1] };
+    // Only time dimension (first) will be extended
+    hsize_t max_dims[3] = {H5S_UNLIMITED, dims[0], dims[1] };
+    H5::DataSpace dataSpace(3, initial_dims, max_dims);
+
+    // Enable chunking for extendable storage, 4 time points into one chunk to decrease allocation / seeking time
+    H5::DSetCreatPropList properties(H5::DSetCreatPropList::DEFAULT);
+    hsize_t chunk_dims[3] = {4, dims[0], dims[1] };
+    properties.setChunk(3, chunk_dims);
+
+    // Define datatypes and dataspaces for strings
+    H5::StrType varstrtype(0, H5T_VARIABLE);
+    H5::DataSpace scalar(H5S_SCALAR);
+    for(auto ligand: this->ligands){
+        H5::DataSet liganddataset = H5::DataSet(this->storage->createDataSet(ligand.name, H5::PredType::IEEE_F64LE, dataSpace, properties));
+        liganddataset.createAttribute("Name", varstrtype, scalar).write(varstrtype, ligand.name);
+        liganddataset.createAttribute("Id", H5::PredType::STD_I8LE, scalar).write(H5::PredType::NATIVE_UINT8, &ligand.ligandId);
+        liganddataset.createAttribute("Diffusion coefficient", H5::PredType::IEEE_F64LE, scalar).write(H5::PredType::NATIVE_DOUBLE, &ligand.diffusionCoefficient);
+        liganddataset.createAttribute("Global production rate", H5::PredType::IEEE_F64LE, scalar).write(H5::PredType::NATIVE_DOUBLE, &ligand.globalProductionRate);
+        liganddataset.createAttribute("Global degradation rate", H5::PredType::IEEE_F64LE, scalar).write(H5::PredType::NATIVE_DOUBLE, &ligand.globalDegradationRate);
+        liganddataset.createAttribute("Inital concentration", H5::PredType::IEEE_F64LE, scalar).write(H5::PredType::NATIVE_DOUBLE, &ligand.initialConcentration);
+        // Store a unique ptr to this dataset for fast storage later on
+        this->ligands_storage[ligand.ligandId] = std::unique_ptr<H5::DataSet>(new H5::DataSet(liganddataset));
+    }
+}
+
+void Environment2D::save() {
+    if(!this->storage)
+        return;
+
+    hsize_t current_size[3], new_size[3];
+    // Take a probe, aqnd calculate the new size after adding data
+    this->ligands_storage.begin()->second->getSpace().getSimpleExtentDims(current_size);
+    new_size[0] = current_size[0] + 1;
+    new_size[1] = current_size[1];
+    new_size[2] = current_size[2];
+
+    // Parameters for hyperslap
+    hsize_t count[3] = {1, new_size[1], new_size[2]};
+    hsize_t start[3] = {current_size[0], 0, 0};
+
+    // TODO: Maybe replace this with one copy operation of complete array and then writing via hyperslap
+    for(auto ligand: this->ligands) {
+        // Copy data from GPU
+        GPU_REALTYPE *data = this->getDensity(ligand.ligandId).host<GPU_REALTYPE>();
+
+        // Extend storage space
+        this->ligands_storage[ligand.ligandId]->extend(new_size);
+        // Define which data to write to where
+        H5::DataSpace targetspace = this->ligands_storage[ligand.ligandId]->getSpace();
+        targetspace.selectHyperslab(H5S_SELECT_SET, count, start);
+        hsize_t dataLength = new_size[1]*new_size[2];
+
+        H5::DataSpace sourceSpace(1, &dataLength);
+        this->ligands_storage[ligand.ligandId]->write(data, HDF5_GPUTYPE, sourceSpace, targetspace);
+        // Free allocated memory
+        af::freeHost(data);
+    }
+}
+
+void Environment2D::closeStorage() {
+    // Calls destructor which also calls close
+    this->ligands_storage.clear();
+    this->storage.reset();
+}
+
 
 array Environment2D::Diffusion2D::rateofchange(array &input) {
     array changes = constant(0, parent->densities.dims());

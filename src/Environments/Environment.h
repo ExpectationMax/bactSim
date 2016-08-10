@@ -6,6 +6,15 @@
 #define PROJECT_NAME_ENVIRONMENT_H
 
 #define GPU_REALTYPE float
+
+#if GPU_REALTYPE == float
+#define HDF5_GPUTYPE H5::PredType::NATIVE_FLOAT
+#define AF_GPUTYPE f32
+#else
+#define HDF5_GPUTYPE H5::PredType::NATIVE_DOUBLE
+#define AF_GPUTYPE f64
+#endif
+
 #define BORDER_SIZE 1
 #define LAPLACIAN_SIZE 1 + 2 * BORDER_SIZE
 

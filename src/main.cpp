@@ -24,7 +24,7 @@ int main(int argc, char** argv)
     ESettings.resolution = 0.5;
     ESettings.dimensions = std::vector<double> {10, 10};
     ESettings.dt = 0.008;
-    ESettings.dataType = f32;
+    ESettings.dataType = AF_GPUTYPE;
 
     BoundaryCondition boundaryCondition(BC_PERIODIC);
     boundaryCondition.xpos = 0;
@@ -55,11 +55,11 @@ int main(int argc, char** argv)
 
     LigandInteraction interaction11 = {0, 5, 0, 0};
     ligandInteractions1.push_back(interaction11);
-//    LigandInteraction interaction12 = {1, 5, 0, 0};
-//    ligandInteractions1.push_back(interaction12);
+    LigandInteraction interaction12 = {1, 0, 5, 0};
+    ligandInteractions1.push_back(interaction12);
 
     std::vector<LigandInteraction> ligandInteractions = {interaction11};//, interaction12};
-    BacterialParameters bactParams = {ligandInteractions, ESettings.dt, 10};
+    BacterialParameters bactParams = {"Ligand1 eater", ligandInteractions, ESettings.dt, 10};
     Bacterial2DPopulation bacteria(&simEnv, bactParams, 20);
     populations.push_back(&bacteria);
 
@@ -67,16 +67,17 @@ int main(int argc, char** argv)
     std::vector<LigandInteraction> ligandInteractions2;
 //    LigandInteraction interaction21 = {0, 0, 0, 0};
 //    ligandInteractions2.push_back(interaction21);
-    LigandInteraction interaction22 = {1, 5, 0, 0};
+    LigandInteraction interaction22 = {1, 10, 0, 0};
     ligandInteractions2.push_back(interaction22);
 
-    BacterialParameters bactParams2 = {ligandInteractions2, ESettings.dt, 10};
+    BacterialParameters bactParams2 = {"Ligand2 eater", ligandInteractions2, ESettings.dt, 10};
     Bacterial2DPopulation bacteria2(&simEnv, bactParams2, 20);
     populations.push_back(&bacteria2);
 
     // Setup model
     Model2D mymodel(&simEnv, populations);
     mymodel.setupStorage("test.h5");
+
 
     // Enable visualization
 #ifndef NO_GRAPHICS
@@ -89,11 +90,13 @@ int main(int argc, char** argv)
     time_t start= time(NULL);
 
     for(int i =0; i < 20/ESettings.dt; i++) {
+        mymodel.save();
         mymodel.simulateTimestep();
 #ifndef NO_GRAPHICS
         mymodel.visualize();
 #endif
     }
+    mymodel.closeStorage();
 
     return 0;
 }

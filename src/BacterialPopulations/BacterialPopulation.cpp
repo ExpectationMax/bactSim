@@ -4,7 +4,7 @@
 
 #include "BacterialPopulation.h"
 
-Bacterial2DPopulation::Bacterial2DPopulation(Environment2D *env, BacterialParameters params) : env(env), params(params) {
+Bacterial2DPopulation::Bacterial2DPopulation(shared_ptr<Environment2D> env, BacterialParameters params) : env(env), params(params) {
     std::vector<int> ligandIds;
     Kds = array((dim_t)params.interactions.size());
     uptakeRates  = array((dim_t)params.interactions.size());
@@ -204,6 +204,40 @@ void Bacterial2DPopulation::closeStorage() {
 
     // Finally close group
     this->storage.reset();
+}
+
+void Bacterial2DPopulation::initializeAngleAndTumbiling() {
+    angle = 2 * af::Pi * randu(size);
+    tumbling = (randu(size)>= 0.5).as(b8);
+}
+
+void Bacterial2DPopulation::setPositions(array x, array y) {
+    xpos = x;
+    ypos = y;
+    validatePositions();
+    updateInterpolatedPositions();
+}
+
+Bacterial2DPopulation::Bacterial2DPopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters,
+                                             int nBacteria) :
+        Bacterial2DPopulation(Env, parameters) {
+    size = nBacteria;
+
+    initializeAngleAndTumbiling();
+
+    array randx = randu(size) * maxx;
+    array randy = randu(size) * maxy;
+    setPositions(randx, randy);
+}
+
+Bacterial2DPopulation::Bacterial2DPopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters,
+                                             int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy) :
+        Bacterial2DPopulation(Env, parameters) {
+    size = nBacteria;
+
+    initializeAngleAndTumbiling();
+
+    setPositions(array(size, initialx), array(size, initialy));
 }
 
 

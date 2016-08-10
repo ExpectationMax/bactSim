@@ -6,7 +6,7 @@
 #include <random>
 #include <H5Cpp.h>
 
-Model2D::Model2D(Environment2D *environment, std::vector<Bacterial2DPopulation *> populations):
+Model2D::Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<Bacterial2DPopulation>> populations):
         env(environment), bacterialPopulations(populations) {
     for(auto population: bacterialPopulations) {
         totalBacteria += population->getSize();
@@ -96,11 +96,11 @@ void Model2D::setupStorage(std::string path) {
 }
 
 void Model2D::save() {
-    if(!this->storage)
+    if (!this->storage)
         return;
 
     this->env->save();
-    for(auto population: this->bacterialPopulations) {
+    for (auto population: this->bacterialPopulations) {
         population->save();
     }
 }

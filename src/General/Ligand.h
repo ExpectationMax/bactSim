@@ -9,23 +9,27 @@
 #include <H5Cpp.h>
 #endif
 
-struct Ligand {
+class Ligand {
+public:
     std::string name;
-    uint8_t ligandId;
+    unsigned int ligandId;
     double initialConcentration;
     double globalProductionRate;
     double globalDegradationRate;
     double diffusionCoefficient;
+    static H5::CompType getH5SaveType();
+    static H5::CompType getH5ReadType();
 };
 
 class LigandInteraction {
 public:
-    int ligandId;
+    unsigned int ligandId;
     double uptakeRate;
     double productionRate;
     double Kon;
     double Koff;
-    static H5::CompType getH5type();
+    static H5::CompType getH5SaveType();
+    static H5::CompType getH5ReadType();
 };
 
 #endif //CHEMOHYBRID_GPU_LIGANDS_H

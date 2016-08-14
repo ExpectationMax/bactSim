@@ -7,8 +7,7 @@
 
 #include "BacterialPopulation.h"
 
-struct BacterialParameters {
-    std::string name;
+struct ExampleParameters {
     std::vector<LigandInteraction> interactions;
     GPU_REALTYPE dt;
     GPU_REALTYPE swimmSpeed;
@@ -17,7 +16,7 @@ struct BacterialParameters {
 class ExamplePopulation : public BacterialPopulation {
 protected:
     // Initialization
-    ExamplePopulation(shared_ptr<Environment2D> env, BacterialParameters params);
+    ExamplePopulation(std::string name, shared_ptr<Environment2D> env, ExampleParameters params);
     void randomizeAngleAndTumbiling();
     void setPositions(array x, array y);
 
@@ -44,7 +43,7 @@ protected:
     void simulate();
     void move();
 
-    BacterialParameters params;
+    ExampleParameters params;
     array Kon;
     array Koff;
     array uptakeRates;
@@ -59,21 +58,25 @@ protected:
     unique_ptr<H5::DataSet> tumblingStorage;
 
 public:
-    ExamplePopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters, int nBacteria);
-    ExamplePopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters, int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy);
+    ExamplePopulation(std::string name, shared_ptr<Environment2D> Env, ExampleParameters parameters, int nBacteria);
+    ExamplePopulation(std::string name, shared_ptr<Environment2D> Env, ExampleParameters parameters, int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy);
+    ExamplePopulation(shared_ptr<Environment2D> Env, H5::Group group);
 
-    void interactWithEnv(int individual);
-    void interactWithEnv(array individuals);
 
-    int getSize() { return size; }
-    array getXpos() { return xpos; }
-    array getYpos() { return ypos; }
+    void interactWithEnv(int individual) override ;
+    void interactWithEnv(array individuals) override;
 
-    void liveTimestep();
+    int getSize() override { return size; }
+    array getXpos() override { return xpos; }
+    array getYpos() override { return ypos; }
 
-    void setupStorage(shared_ptr<H5::Group> storage);
-    void save();
-    void closeStorage();
+    void liveTimestep() override;
+
+    void setupStorage(H5::Group storage) override ;
+    void save() override;
+    void closeStorage() override;
+
+    REGISTER_DEC_TYPE(ExamplePopulation);
 };
 
 

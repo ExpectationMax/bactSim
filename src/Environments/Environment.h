@@ -26,48 +26,15 @@
 #include <arrayfire.h>
 #include <type_traits>
 #include <map>
-#include <General/Ligand.hpp>
-#include "Solvers/Solver.h"
 #include <memory>
+#include <General/Ligand.h>
+#include "Solvers/Solver.h"
+#include "BoundaryCondition.h"
 
 using namespace af;
 using std::unique_ptr;
 using std::shared_ptr;
 
-// Define BoundaryConditions, this does not contain the implementation of the condition but merely its definition.
-enum BoundaryConditionType {
-    BC_PERIODIC,
-    BC_DIRICHELET,
-    BC_NEUMANN
-};
-
-class BoundaryCondition {
-public:
-    // Default allways use Neumann boundaries
-    BoundaryCondition() {
-        this->type = BC_NEUMANN;
-    };
-    BoundaryCondition(BoundaryConditionType boundaryConditionType) {
-        this->type = boundaryConditionType;
-    };
-    BoundaryCondition(BoundaryConditionType boundaryConditionType, double xpos, double xneg) :
-            BoundaryCondition(boundaryConditionType) {
-        this->xpos = xpos;
-        this->xneg = xneg;
-    };
-    BoundaryCondition(BoundaryConditionType boundaryConditionType, double xpos, double xneg, double ypos, double yneg) :
-            BoundaryCondition(boundaryConditionType, xpos, xneg) {
-        this->ypos = ypos;
-        this->yneg = yneg;
-    };
-    BoundaryCondition(BoundaryConditionType boundaryConditionType, double xpos, double xneg, double ypos, double yneg,
-                      double zpos, double zneg) : BoundaryCondition(boundaryConditionType, xpos, xneg, ypos, yneg) {
-        this->zpos = zpos;
-        this->zneg = zneg;
-    };
-    BoundaryConditionType type;
-    double xneg, xpos, yneg, ypos, zneg, zpos = 0;
-};
 
 struct EnvironmentSettings {
     // Definition of Size
@@ -79,12 +46,14 @@ struct EnvironmentSettings {
 
     //Simulation parameters
     GPU_REALTYPE dt;
-    af_dtype dataType;
     BoundaryCondition boundaryCondition;
 };
 
 
 class Environment {
+private:
+    void init(EnvironmentSettings settings, shared_ptr<Solver> odesolver);
+
 protected:
     // Internal arrays
     af::array densities;
@@ -92,6 +61,7 @@ protected:
 
     std::vector<Ligand> ligands;
     array ligandMapping;
+    std::map<unsigned int, unsigned int> hostLigandMapping;
 
     // Simultation Parameters
     GPU_REALTYPE dt;
@@ -109,10 +79,11 @@ protected:
         densities = odesolver->solveStep(*diffusionEquation, densities, dt);
     }
 
-    Solver *odesolver;
-    unique_ptr<DifferentialEquation> diffusionEquation = NULL;
+    shared_ptr<Solver> odesolver;
+    unique_ptr<DifferentialEquation> diffusionEquation;
 
-    Environment(EnvironmentSettings settings, Solver &odesolver);
+    Environment(EnvironmentSettings settings, shared_ptr<Solver> odesolver);
+    Environment(H5::Group);
 public:
     void simulateTimeStep(void);
 #ifndef NO_GRAPHICS
@@ -124,6 +95,8 @@ public:
     array getLigandMapping(std::vector<int> ligands);
     void setupVisualizationWindow(Window &win);
     BoundaryConditionType getBoundaryConditionType() { return boundaryCondition.type; }
+
+    void setupStorage(unique_ptr<H5::Group> unique_ptr);
 };
 
 #endif //PROJECT_NAME_ENVIRONMENT_H

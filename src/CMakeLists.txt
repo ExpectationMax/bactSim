@@ -40,7 +40,12 @@ if(NO_GRAPHICS)
     add_definitions(-DNO_GRAPHICS)
 endif()
 
-set(SOURCE General/Ligand.hpp General/Ligand.cpp Environments/Environment2D.cpp Environments/Environment.cpp BacterialPopulations/ExamplePopulation.cpp BacterialPopulations/ExamplePopulation.h Models/Model2D.h Models/Model2D.cpp Solvers/Solver.h Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp )
+set(LIGANDS General/Ligand.cpp General/Ligand.h)
+set(ENVIRONEMENTS Environments/BoundaryCondition.h Environments/BoundaryCondition.cpp Environments/Environment.h Environments/Environment.cpp Environments/Environment2D.h Environments/Environment2D.cpp)
+set(BACTERIA BacterialPopulations/BacterialPopulation.cpp BacterialPopulations/ExamplePopulation.cpp)
+set(SOLVERS Solvers/Solver.cpp Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp)
+set(MODELS Models/Model2D.h Models/Model2D.cpp )
+set(SOURCE ${LIGANDS} ${ENVIRONEMENTS} ${BACTERIA} ${SOLVERS} ${MODELS})
 
 # There are several ways of compiling source code in CMake. In most cases you
 # specify the source files to an ADD_EXCUTABLE call. Because we intend to

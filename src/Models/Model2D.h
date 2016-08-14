@@ -27,6 +27,8 @@ class Model2D {
 public:
     Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations);
 
+    Model2D(H5::Group input);
+
     ~Model2D() { delete[] allBacteria; delete[] callOrder; }
 
     void simulateTimestep();

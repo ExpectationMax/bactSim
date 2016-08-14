@@ -16,3 +16,5 @@ array RungeKuttaSolver::solveStep(DifferentialEquation &eq, array &initial_state
     result.eval();
     return result;
 }
+
+REGISTER_DEF_SOLVER(RungeKuttaSolver);

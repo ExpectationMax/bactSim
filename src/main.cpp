@@ -25,7 +25,6 @@ int main(int argc, char** argv)
     ESettings.resolution = 0.5;
     ESettings.dimensions = std::vector<double> {10, 10};
     ESettings.dt = 0.008;
-    ESettings.dataType = AF_GPUTYPE;
 
     BoundaryCondition boundaryCondition(BC_PERIODIC);
     boundaryCondition.xpos = 0;
@@ -43,7 +42,7 @@ int main(int argc, char** argv)
 //    Ligand ligand4 = {"Ligand4", 3, 10.0, 0.0, 0.05,20.0};
 //    ESettings.ligands.push_back(ligand4);
 
-    RungeKuttaSolver solver;
+    shared_ptr<Solver> solver(static_cast<Solver *>(new RungeKuttaSolver));
     shared_ptr<Environment2D> simEnv(new Environment2D(ESettings, solver));
 
     // Update randomness
@@ -60,8 +59,8 @@ int main(int argc, char** argv)
     ligandInteractions1.push_back(interaction12);
 
     std::vector<LigandInteraction> ligandInteractions = {interaction11};//, interaction12};
-    BacterialParameters bactParams = {"Ligand1 eater", ligandInteractions, ESettings.dt, 10};
-    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new ExamplePopulation(simEnv, bactParams, 20))));
+    ExampleParameters bactParams = {ligandInteractions, ESettings.dt, 10};
+    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new ExamplePopulation("Ligand 1 eater", simEnv, bactParams, 20))));
 
     // Setup population 2
     std::vector<LigandInteraction> ligandInteractions2;
@@ -71,13 +70,15 @@ int main(int argc, char** argv)
     ligandInteractions2.push_back(interaction22);
 
 
-    BacterialParameters bactParams2 = {"Ligand2 eater", ligandInteractions2, ESettings.dt, 10};
-    populations.push_back(shared_ptr<BacterialPopulation>(new ExamplePopulation(simEnv, bactParams2, 20)));
+    ExampleParameters bactParams2 = {ligandInteractions2, ESettings.dt, 10};
+    populations.push_back(shared_ptr<BacterialPopulation>(new ExamplePopulation("Ligand2 eater", simEnv, bactParams2, 20)));
 
     // Setup model
     Model2D mymodel(simEnv, populations);
     mymodel.setupStorage("test.h5");
-
+    H5::Group testgr;
+    shared_ptr<BacterialPopulation> test = BacteriaFactory::createInstance("ExamplePopulation",
+                                                                           shared_ptr<Environment2D>(), testgr);
 
     // Enable visualization
 #ifndef NO_GRAPHICS

@@ -14,29 +14,8 @@ array Environment2D::getLaplacian() {
     return array(3, 3, data2);
 }
 
-Environment2D::Environment2D(EnvironmentSettings settings, Solver &solver) : Environment(settings, solver) {
-    densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], settings.dataType);
-    diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
-
-    for(size_t i = 0; i < ligands.size(); i++) {
-        densities(span, span, i) = settings.ligands[i].initialConcentration;
-        diffusion_filters(span, span, i) = Environment2D::getLaplacian();
-        diffusion_filters(span, span, i) *= settings.ligands[i].diffusionCoefficient/pow(resolution, 2);
-    }
-    diffusionEquation.reset(new Diffusion2D(this));
-
-    switch(this->boundaryCondition.type) {
-        case BC_NEUMANN:
-        default:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyNeumannBC, &this->densities, this->resolution, &this->boundaryCondition);
-            break;
-        case BC_DIRICHELET:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyDericheletBC, &this->densities, &this->boundaryCondition);
-            break;
-        case BC_PERIODIC:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyPeriodicBC, &this->densities);
-            break;
-    }
+Environment2D::Environment2D(EnvironmentSettings settings, shared_ptr<Solver> solver) : Environment(settings, solver) {
+    init();
 }
 
 array Environment2D::getAllDensities() {
@@ -166,7 +145,7 @@ void Environment2D::evalDensities() {
     eval(densities);
 }
 
-void Environment2D::setupStorage(unique_ptr<H5::Group> storage) {
+void Environment2D::setupStorage(unique_ptr<H5::Group> storage)  {
     // Store reference to group
     this->storage = std::move(storage);
 
@@ -193,11 +172,9 @@ void Environment2D::setupStorage(unique_ptr<H5::Group> storage) {
     for(auto ligand: this->ligands){
         H5::DataSet liganddataset = H5::DataSet(this->storage->createDataSet(ligand.name, H5::PredType::IEEE_F64LE, dataSpace, properties));
         liganddataset.createAttribute("Name", varstrtype, scalar).write(varstrtype, ligand.name);
-        liganddataset.createAttribute("Id", H5::PredType::STD_I8LE, scalar).write(H5::PredType::NATIVE_UINT8, &ligand.ligandId);
-        liganddataset.createAttribute("Diffusion coefficient", H5::PredType::IEEE_F64LE, scalar).write(H5::PredType::NATIVE_DOUBLE, &ligand.diffusionCoefficient);
-        liganddataset.createAttribute("Global production rate", H5::PredType::IEEE_F64LE, scalar).write(H5::PredType::NATIVE_DOUBLE, &ligand.globalProductionRate);
-        liganddataset.createAttribute("Global degradation rate", H5::PredType::IEEE_F64LE, scalar).write(H5::PredType::NATIVE_DOUBLE, &ligand.globalDegradationRate);
-        liganddataset.createAttribute("Inital concentration", H5::PredType::IEEE_F64LE, scalar).write(H5::PredType::NATIVE_DOUBLE, &ligand.initialConcentration);
+        H5::Attribute properties = liganddataset.createAttribute("Properties", Ligand::getH5SaveType(), scalar);
+        properties.write(Ligand::getH5ReadType(), &ligand);
+
         // Store a unique ptr to this dataset for fast storage later on
         this->ligands_storage[ligand.ligandId] = std::unique_ptr<H5::DataSet>(new H5::DataSet(liganddataset));
     }
@@ -241,6 +218,39 @@ void Environment2D::closeStorage() {
     // Calls destructor which also calls close
     this->ligands_storage.clear();
     this->storage.reset();
+}
+
+Environment2D::Environment2D(H5::Group group) : Environment(group) {
+    init();
+    int nLigands = group.getNumObjs();
+    for(int i = 0; i < nLigands; i++) {
+        // TODO
+    }
+}
+
+void Environment2D::init() {
+    densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
+    diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
+
+    for(size_t i = 0; i < ligands.size(); i++) {
+        densities(span, span, i) = this->ligands[i].initialConcentration;
+        diffusion_filters(span, span, i) = Environment2D::getLaplacian();
+        diffusion_filters(span, span, i) *= this->ligands[i].diffusionCoefficient/pow(resolution, 2);
+    }
+    diffusionEquation.reset(new Diffusion2D(this));
+
+    switch(this->boundaryCondition.type) {
+        case BC_NEUMANN:
+        default:
+            this->applyBoundaryCondition = std::bind(Environment2D::applyNeumannBC, &this->densities, this->resolution, &this->boundaryCondition);
+            break;
+        case BC_DIRICHELET:
+            this->applyBoundaryCondition = std::bind(Environment2D::applyDericheletBC, &this->densities, &this->boundaryCondition);
+            break;
+        case BC_PERIODIC:
+            this->applyBoundaryCondition = std::bind(Environment2D::applyPeriodicBC, &this->densities);
+            break;
+    }
 }
 
 

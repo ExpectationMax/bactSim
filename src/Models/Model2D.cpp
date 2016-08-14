@@ -74,9 +74,10 @@ void Model2D::setupStorage(H5::CommonFG &output) {
 
     // Let the bacterial populations create their groups below the populations group
     // As these functions should not really store the the Group but only use it in the setupStorage function we must not bother about ownership
-    shared_ptr<H5::Group> popGroup(new H5::Group(output.createGroup("Populations")));
+    H5::Group popGroup(output.createGroup("Populations"));
     for(auto population: this->bacterialPopulations) {
-        population->setupStorage(popGroup);
+        H5::Group curPopulation = popGroup.createGroup(population->name);
+        population->setupStorage(curPopulation);
     }
 }
 
@@ -102,5 +103,19 @@ void Model2D::save() {
     this->env->save();
     for (auto population: this->bacterialPopulations) {
         population->save();
+    }
+}
+
+Model2D::Model2D(H5::Group input) {
+    shared_ptr<Environment2D> environment(new Environment2D(input.openGroup("Environment")));
+    H5::Group populations = input.openGroup("Populations");
+    int nPopulations = populations.getNumObjs();
+    bacterialPopulations.resize(nPopulations);
+    for(int i = 0; i < populations.getNumObjs(); i++) {
+        // Get group of
+        std::string name = populations.getObjnameByIdx(i);
+        H5::Group popGroup = populations.openGroup(name);
+
+
     }
 }

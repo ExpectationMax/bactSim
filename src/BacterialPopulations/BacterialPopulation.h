@@ -8,18 +8,23 @@
 #import <arrayfire.h>
 #import "Environments/Environment.h"
 #include <Environments/Environment2D.h>
-#import "General/Ligand.hpp"
+#import "General/Ligand.h"
 #import <map>
 
 #define REGISTER_DEC_TYPE(NAME) \
-    static DerivedRegister<NAME> reg
+    static DerivedRegister<NAME> reg; \
+    static const std::string type
 
 #define REGISTER_DEF_TYPE(NAME) \
-    DerivedRegister<NAME> NAME::reg(#NAME)
+    DerivedRegister<NAME> NAME::reg(#NAME); \
+    const std::string NAME::type = #NAME
 
 
 class BacterialPopulation {
 public:
+    static shared_ptr<BacterialPopulation> createFromGroup(shared_ptr<Environment2D> env, H5::Group group);
+    std::string name;
+
     virtual void interactWithEnv(int individual) = 0;
     virtual void interactWithEnv(array individuals) = 0;
 
@@ -29,39 +34,30 @@ public:
 
     virtual void liveTimestep() = 0;
 
-    virtual void setupStorage(shared_ptr<H5::Group> storage) = 0;
+    virtual void setupStorage(H5::Group storage) = 0;
     virtual void save() = 0;
     virtual void closeStorage() = 0;
 };
 
+// This allows bacterial populations to be registered and later initialized based on a type string and a H5Group
+template<typename T> shared_ptr<BacterialPopulation> createT(shared_ptr<Environment2D> env, H5::Group group) {
+    return shared_ptr<BacterialPopulation>(
+            static_cast<BacterialPopulation *>(new T(env, group)));
+}
 
-// This allows bacterial populations to be registered and later initialized based on a type string
-template<typename T> BacterialPopulation * createT(H5::Group group) { return new T(group); }
-
-struct BacteriaFactory {
-    typedef std::map<std::string, BacterialPopulation*(*)()> map_type;
-
-    static BacterialPopulation * createInstance(std::string const& s) {
-        map_type::iterator it = getMap()->find(s);
-        if(it == getMap()->end())
-            return 0;
-        return it->second();
-    }
-
+class BacteriaFactory {
+    typedef std::map<std::string, shared_ptr<BacterialPopulation>(*)(shared_ptr<Environment2D> env, H5::Group group)> map_type;
+public:
+    static shared_ptr<BacterialPopulation>
+    createInstance(std::string const &s, shared_ptr<Environment2D> env, H5::Group group);
 protected:
-    static map_type * getMap() {
-        // never delete'ed. (exist until program termination)
-        // because we can't guarantee correct destruction order
-        if(!map) { map = new map_type; }
-        return map;
-    }
-
-private:
+    static map_type * getMap();
     static map_type * map;
 };
 
 template<typename T>
-struct DerivedRegister : BacteriaFactory {
+class DerivedRegister : BacteriaFactory {
+public:
     DerivedRegister(std::string const& s) {
         getMap()->insert(std::make_pair(s, &createT<T>));
     }

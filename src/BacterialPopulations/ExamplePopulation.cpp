@@ -4,7 +4,8 @@
 
 #include "ExamplePopulation.h"
 
-ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> env, BacterialParameters params) : env(env), params(params) {
+ExamplePopulation::ExamplePopulation(std::string name, shared_ptr<Environment2D> env, ExampleParameters params) : env(env), params(params) {
+    this->name = name;
     std::vector<int> ligandIds;
     Koff = array((dim_t)params.interactions.size());
     Kon = array((dim_t)params.interactions.size());
@@ -104,9 +105,9 @@ void ExamplePopulation::move() {
     ypos += !tumbling*af::sin(angle)*params.swimmSpeed*params.dt;
 }
 
-void ExamplePopulation::setupStorage(shared_ptr<H5::Group> storage) {
+void ExamplePopulation::setupStorage(H5::Group storage) {
     // Create group with name of bacterial population
-    this->storage.reset(new H5::Group(storage->createGroup(this->params.name)));
+    this->storage.reset(new H5::Group(storage));
 
     // Store parameters of population
     H5::DataSpace scalar(H5S_SCALAR);
@@ -119,7 +120,7 @@ void ExamplePopulation::setupStorage(shared_ptr<H5::Group> storage) {
     // Store interactions
     hsize_t interCount = this->params.interactions.size();
     H5::DataSpace interSpace(1, &interCount);
-    H5::CompType interType = LigandInteraction::getH5type();
+    H5::CompType interType = LigandInteraction::getH5SaveType();
     H5::Attribute interactions = this->storage->createAttribute("Ligand interactions", interType, interSpace);
     interactions.write(interType, this->params.interactions.data());
 
@@ -220,9 +221,8 @@ void ExamplePopulation::setPositions(array x, array y) {
     updateInterpolatedPositions();
 }
 
-ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters,
-                                     int nBacteria) :
-        ExamplePopulation(Env, parameters) {
+ExamplePopulation::ExamplePopulation(std::string name, shared_ptr<Environment2D> Env, ExampleParameters parameters,
+                                     int nBacteria) : ExamplePopulation(name, Env, parameters) {
     size = nBacteria;
 
     randomizeAngleAndTumbiling();
@@ -232,12 +232,17 @@ ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> Env, BacterialPar
     setPositions(randx, randy);
 }
 
-ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> Env, BacterialParameters parameters,
+ExamplePopulation::ExamplePopulation(std::string name, shared_ptr<Environment2D> Env, ExampleParameters parameters,
                                      int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy) :
-        ExamplePopulation(Env, parameters) {
+        ExamplePopulation(name, Env, parameters) {
     size = nBacteria;
-
     randomizeAngleAndTumbiling();
-
     setPositions(array(size, initialx), array(size, initialy));
 }
+
+ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> Env, H5::Group group) {
+    std::cout << "Called Constructor for ExamplePopulation" << std::endl;
+}
+
+REGISTER_DEF_TYPE(ExamplePopulation);
+

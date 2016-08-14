@@ -22,6 +22,7 @@
 
 
 class Environment2D : public Environment {
+    void init();
     // Boundary condition functions;
     static void applyNeumannBC(array *input, double resolution, BoundaryCondition *bc);
     static void applyDericheletBC(array *input,  BoundaryCondition *bc);
@@ -39,7 +40,7 @@ class Environment2D : public Environment {
     std::map<unsigned int, unique_ptr<H5::DataSet>> ligands_storage;
 
 public:
-    Environment2D(EnvironmentSettings settings, Solver &solver);
+    Environment2D(EnvironmentSettings settings, shared_ptr<Solver> solver);
     array getAllDensities() override;
     array getDensity(int) override;
     std::vector<double> getSize() override;
@@ -57,6 +58,8 @@ public:
     void setupStorage(unique_ptr<H5::Group> storage);
 
     void save();
+
+    Environment2D(H5::Group group);
 };
 
 #endif //CHEMOHYBRID_GPU_ENVIRONMENT2D_H

@@ -8,3 +8,4 @@ array ForwardEulerSolver::solveStep(DifferentialEquation &eq, array &inital_stat
     return inital_state + eq.rateofchange(inital_state)*stepsize;
 }
 
+REGISTER_DEF_SOLVER(ForwardEulerSolver);

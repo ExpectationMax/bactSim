@@ -3,14 +3,19 @@
 //
 
 #include "ExamplePopulation.h"
+#include "General/GpuHelper.h"
 
 ExamplePopulation::ExamplePopulation(std::string name, shared_ptr<Environment2D> env, ExampleParameters params) : env(env), params(params) {
     this->name = name;
+    init();
+}
+
+void ExamplePopulation::init() {
     std::vector<int> ligandIds;
-    Koff = array((dim_t)params.interactions.size());
-    Kon = array((dim_t)params.interactions.size());
-    uptakeRates  = array((dim_t)params.interactions.size());
-    productionRates = array((dim_t)params.interactions.size());
+    this->Koff = array((dim_t)params.interactions.size());
+    this->Kon = array((dim_t)params.interactions.size());
+    this->uptakeRates  = array((dim_t)params.interactions.size());
+    this->productionRates = array((dim_t)params.interactions.size());
 
     for(size_t i = 0; i < params.interactions.size(); i++) {
         ligandIds.push_back(params.interactions[i].ligandId);
@@ -60,7 +65,7 @@ void ExamplePopulation::applyPeriodicBoundary(int maxx, int maxy, array &xpos, a
     ypos -= (ypos > maxy) * ypos;
 
     ypos += (ypos < 0) * (-ypos + maxy);
-};
+}
 
 void ExamplePopulation::applySolidBoundary(int maxx, int maxy, array &xpos, array &ypos, array &tumbling) {
     // Shift bacteria that are out of range back into field
@@ -82,7 +87,7 @@ void ExamplePopulation::applySolidBoundary(int maxx, int maxy, array &xpos, arra
 
     // set tumbling to true for out of range bacteria
     tumbling = tumbling || max(outofrange, 1);
-};
+}
 
 void ExamplePopulation::liveTimestep() {
     simulate();
@@ -99,18 +104,17 @@ void ExamplePopulation::updateInterpolatedPositions() {
     interpolatedPositions = env->getInterpolatedPositions(xpos, ypos);
 }
 
-
 void ExamplePopulation::move() {
     xpos += !tumbling*af::cos(angle)*params.swimmSpeed*params.dt;
     ypos += !tumbling*af::sin(angle)*params.swimmSpeed*params.dt;
 }
 
 void ExamplePopulation::setupStorage(H5::Group storage) {
-    // Create group with name of bacterial population
-    this->storage.reset(new H5::Group(storage));
+    // Name and type are initialised by base class
+    BacterialPopulation::setupBaseStorage(storage);
 
-    // Store parameters of population
     H5::DataSpace scalar(H5S_SCALAR);
+
     H5::Attribute swimmSpeed = this->storage->createAttribute("Swimm speed", H5::PredType::IEEE_F64LE, scalar);
     swimmSpeed.write(HDF5_GPUTYPE, &this->params.swimmSpeed);
 
@@ -197,7 +201,6 @@ void ExamplePopulation::save() {
     af::freeHost(bdata);
 }
 
-
 void ExamplePopulation::closeStorage() {
     // Call to reset also calls destructor
     this->xposStorage.reset();
@@ -240,9 +243,53 @@ ExamplePopulation::ExamplePopulation(std::string name, shared_ptr<Environment2D>
     setPositions(array(size, initialx), array(size, initialy));
 }
 
+
+
 ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> Env, H5::Group group) {
-    std::cout << "Called Constructor for ExamplePopulation" << std::endl;
+    // Name and storage initialized by base class
+    BacterialPopulation::restoreBaseStorage(group);
+    ExampleParameters parameters;
+
+    // read parameters
+    group.openAttribute("Swimm speed").read(HDF5_GPUTYPE, &parameters.swimmSpeed);
+    group.openAttribute("dt").read(HDF5_GPUTYPE, &parameters.dt);
+
+    // read ligand interactions
+    H5::Attribute ligInteractions = group.openAttribute("Ligand interactions");
+    hsize_t nInteractions;
+    H5::DataSpace interationSpace = ligInteractions.getSpace();
+    interationSpace.getSimpleExtentDims(&nInteractions);
+    parameters.interactions.resize(nInteractions);
+    ligInteractions.read(LigandInteraction::getH5ReadType(), parameters.interactions.data());
+
+    this->env = Env;
+    this->params = parameters;
+    this->init();
+
+    H5::DataSet xpos = group.openDataSet("xpos");
+    this->xpos = GpuHelper::loadLastDataToGpu<GPU_REALTYPE>(xpos, HDF5_GPUTYPE, AF_GPUTYPE);
+    this->xposStorage.reset(new DataSet(xpos));
+
+    H5::DataSet ypos = group.openDataSet("ypos");
+    this->ypos = GpuHelper::loadLastDataToGpu<GPU_REALTYPE>(ypos, HDF5_GPUTYPE, AF_GPUTYPE);
+    this->yposStorage.reset(new DataSet(ypos));
+
+    H5::DataSet angle = group.openDataSet("angle");
+    this->angle = GpuHelper::loadLastDataToGpu<GPU_REALTYPE>(angle, HDF5_GPUTYPE, AF_GPUTYPE);
+    this->angleStorage.reset(new DataSet(angle));
+
+    H5::DataSet tumbling = group.openDataSet("tumbling");
+    this->tumbling = GpuHelper::loadLastDataToGpu<char>(tumbling, H5::PredType::NATIVE_CHAR, af::dtype::b8);
+    this->tumblingStorage.reset(new DataSet(tumbling));
+
+    validatePositions();
+    updateInterpolatedPositions();
+}
+
+std::string ExamplePopulation::getType() {
+    return ExamplePopulation::type;
 }
 
 REGISTER_DEF_TYPE(ExamplePopulation);
+
 

@@ -64,9 +64,6 @@ protected:
     std::map<unsigned int, unsigned int> hostLigandMapping;
 
     // Simultation Parameters
-    GPU_REALTYPE dt;
-    BoundaryCondition boundaryCondition;
-    double resolution;
     std::vector<dim_t> internal_dimensions;
 #ifndef NO_GRAPHICS
     Window *visualizationWin;
@@ -82,9 +79,17 @@ protected:
     shared_ptr<Solver> odesolver;
     unique_ptr<DifferentialEquation> diffusionEquation;
 
+    EnvironmentSettings settings;
+
     Environment(EnvironmentSettings settings, shared_ptr<Solver> odesolver);
     Environment(H5::Group);
+
+    unique_ptr<H5::Group> storage;
 public:
+    GPU_REALTYPE dt;
+    BoundaryCondition boundaryCondition;
+    double resolution;
+
     void simulateTimeStep(void);
 #ifndef NO_GRAPHICS
     void visualize(double normalizer);

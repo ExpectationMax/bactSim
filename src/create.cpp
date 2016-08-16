@@ -53,20 +53,19 @@ int main(int argc, char** argv)
     // Setup population 1
     std::vector<LigandInteraction> ligandInteractions1;
 
-    LigandInteraction interaction11 = {0, 5, 0, 0, 0};
+    LigandInteraction interaction11 = {0, 0, 0, 0, 0};
     ligandInteractions1.push_back(interaction11);
-    LigandInteraction interaction12 = {1, 0, 5, 0, 0};
+    LigandInteraction interaction12 = {1, 5, 0, 0, 0};
     ligandInteractions1.push_back(interaction12);
 
-    std::vector<LigandInteraction> ligandInteractions = {interaction11};//, interaction12};
-    ExampleParameters bactParams = {ligandInteractions, ESettings.dt, 10};
+    ExampleParameters bactParams = {ligandInteractions1, ESettings.dt, 10};
     populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new ExamplePopulation("Ligand 1 eater", simEnv, bactParams, 20))));
 
     // Setup population 2
     std::vector<LigandInteraction> ligandInteractions2;
 //    LigandInteraction interaction21 = {0, 0, 0, 0};
 //    ligandInteractions2.push_back(interaction21);
-    LigandInteraction interaction22 = {1, 10, 0, 0, 0};
+    LigandInteraction interaction22 = {1, 0, 0, 0, 0};
     ligandInteractions2.push_back(interaction22);
 
 
@@ -77,8 +76,6 @@ int main(int argc, char** argv)
     Model2D mymodel(simEnv, populations);
     mymodel.setupStorage("test.h5");
     H5::Group testgr;
-    shared_ptr<BacterialPopulation> test = BacteriaFactory::createInstance("ExamplePopulation",
-                                                                           shared_ptr<Environment2D>(), testgr);
 
     // Enable visualization
 #ifndef NO_GRAPHICS
@@ -89,10 +86,10 @@ int main(int argc, char** argv)
 #endif
 
     time_t start= time(NULL);
-
-    for(int i =0; i < 20/ESettings.dt; i++) {
-        mymodel.save();
+    mymodel.save();
+    for(int i =0; i < 1/ESettings.dt; i++) {
         mymodel.simulateTimestep();
+        mymodel.save();
 #ifndef NO_GRAPHICS
         mymodel.visualize();
 #endif

@@ -4,7 +4,7 @@
 
 #ifndef CHEMOHYBRID_GPU_BOUNDARYCONDITION_H
 #define CHEMOHYBRID_GPU_BOUNDARYCONDITION_H
-
+#include <H5Cpp.h>
 
 // Define BoundaryConditions, this does not contain the implementation of the condition but merely its definition.
 enum BoundaryConditionType {

@@ -11,11 +11,13 @@
 
 #define REGISTER_DEC_SOLVER(NAME) \
     static RegisterSolver<NAME> reg; \
-    static const std::string type
+    static const std::string type; \
+    std::string getType() override
 
 #define REGISTER_DEF_SOLVER(NAME) \
     RegisterSolver<NAME> NAME::reg(#NAME); \
-    const std::string NAME::type = #NAME
+    const std::string NAME::type = #NAME; \
+    std::string NAME::getType() {return NAME::type;}
 
 using namespace af;
 using std::shared_ptr;
@@ -30,6 +32,7 @@ protected:
     Solver() {};
 public:
     virtual array solveStep(DifferentialEquation &eq, array &inital_state, double stepsize) const = 0;
+    virtual std::string getType() = 0;
 };
 
 // This allows solvers to be registered and later initialized based on a type string

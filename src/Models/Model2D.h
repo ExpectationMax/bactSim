@@ -15,7 +15,6 @@ struct bacteriumRef {
 };
 
 class Model2D {
-    shared_ptr<Environment2D> env;
 #ifndef NO_GRAPHICS
     Window *populationsWin;
 #endif
@@ -27,9 +26,11 @@ class Model2D {
 public:
     Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations);
 
-    Model2D(H5::Group input);
+    Model2D(H5::H5File &input);
 
     ~Model2D() { delete[] allBacteria; delete[] callOrder; }
+
+    shared_ptr<Environment2D> env;
 
     void simulateTimestep();
 
@@ -39,12 +40,15 @@ public:
 
     void visualize();
 
-    void setupStorage(H5::CommonFG &output);
+    void setupStorage(H5::H5File &output);
 
     void closeStorage();
 
     void save();
+private:
+    void init();
 };
+
 
 
 #endif //CHEMOHYBRID_GPU_MODEL2D_H

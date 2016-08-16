@@ -36,7 +36,6 @@ class Environment2D : public Environment {
         virtual array rateofchange(array &input) override;
     };
 
-    unique_ptr<H5::Group> storage;
     std::map<unsigned int, unique_ptr<H5::DataSet>> ligands_storage;
 
 public:

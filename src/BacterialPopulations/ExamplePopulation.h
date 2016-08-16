@@ -51,11 +51,11 @@ protected:
     array ligandmapping;
 
     // Storage
-    unique_ptr<H5::Group> storage;
     unique_ptr<H5::DataSet> xposStorage;
     unique_ptr<H5::DataSet> yposStorage;
     unique_ptr<H5::DataSet> angleStorage;
     unique_ptr<H5::DataSet> tumblingStorage;
+
 
 public:
     ExamplePopulation(std::string name, shared_ptr<Environment2D> Env, ExampleParameters parameters, int nBacteria);
@@ -66,17 +66,20 @@ public:
     void interactWithEnv(int individual) override ;
     void interactWithEnv(array individuals) override;
 
+    std::string getType() override;
     int getSize() override { return size; }
     array getXpos() override { return xpos; }
     array getYpos() override { return ypos; }
 
     void liveTimestep() override;
 
-    void setupStorage(H5::Group storage) override ;
+    void setupStorage(H5::Group storage) override;
     void save() override;
     void closeStorage() override;
 
     REGISTER_DEC_TYPE(ExamplePopulation);
+
+    void init();
 };
 
 

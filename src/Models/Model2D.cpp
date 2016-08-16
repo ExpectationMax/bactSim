@@ -8,7 +8,11 @@
 
 Model2D::Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations):
         env(environment), bacterialPopulations(populations) {
-    for(auto population: bacterialPopulations) {
+    init();
+}
+
+void Model2D::init() {
+    for(auto population: this->bacterialPopulations) {
         totalBacteria += population->getSize();
     }
 
@@ -31,6 +35,7 @@ Model2D::Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<B
 
 void Model2D::simulateTimestep() {
     std::random_shuffle(&callOrder[0], &callOrder[totalBacteria-1]);
+    // TODO: Remove comments as soon as restor of population state is working
     for(size_t i = 0; i < totalBacteria; i++) {
         bacteriumRef curBacterium = allBacteria[i];
         curBacterium.population->interactWithEnv(curBacterium.individual);
@@ -66,8 +71,8 @@ void Model2D::visualize() {
     populationsWin->show();
 }
 
-void Model2D::setupStorage(H5::CommonFG &output) {
-
+void Model2D::setupStorage(H5::H5File &output) {
+    this->storage.reset(new H5::H5File(output));
     // Let environment initialize its group
     unique_ptr<H5::Group> envGroup(new H5::Group(output.createGroup("Environment")));
     this->env->setupStorage(std::move(envGroup));
@@ -88,12 +93,12 @@ void Model2D::closeStorage() {
     this->env->closeStorage();
 
     if(this->storage)
-        this->storage->close();
+        this->storage.reset();
 }
 
 void Model2D::setupStorage(std::string path) {
-    this->storage.reset(new H5::H5File(path, H5F_ACC_TRUNC));
-    this->setupStorage(*this->storage.get());
+    H5::H5File thefile (path, H5F_ACC_TRUNC);
+    this->setupStorage(thefile);
 }
 
 void Model2D::save() {
@@ -106,16 +111,19 @@ void Model2D::save() {
     }
 }
 
-Model2D::Model2D(H5::Group input) {
+Model2D::Model2D(H5::H5File &input) {
     shared_ptr<Environment2D> environment(new Environment2D(input.openGroup("Environment")));
     H5::Group populations = input.openGroup("Populations");
     int nPopulations = populations.getNumObjs();
-    bacterialPopulations.resize(nPopulations);
+    bacterialPopulations.reserve(nPopulations);
     for(int i = 0; i < populations.getNumObjs(); i++) {
-        // Get group of
         std::string name = populations.getObjnameByIdx(i);
         H5::Group popGroup = populations.openGroup(name);
-
-
+        this->bacterialPopulations.push_back(BacterialPopulation::createFromGroup(environment, popGroup));
     }
+
+    this->env = environment;
+    this->bacterialPopulations = bacterialPopulations;
+    init();
+    this->storage = unique_ptr<H5::H5File>(new H5::H5File(input));
 }

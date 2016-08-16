@@ -18,6 +18,63 @@ Environment2D::Environment2D(EnvironmentSettings settings, shared_ptr<Solver> so
     init();
 }
 
+Environment2D::Environment2D(H5::Group group) : Environment(group) {
+    init();
+    hsize_t current_size[3], count[3], start[3];
+    for(auto ligand: this->ligands) {
+        H5::DataSet ligData = group.openDataSet(ligand.name);
+        H5::DataSpace sourceSpace = ligData.getSpace();
+
+        sourceSpace.getSimpleExtentDims(current_size);
+        // Read last time step
+        count[0] = 1;
+        count[1] = current_size[1];
+        count[2] = current_size[2];
+
+        start[0] = current_size[0]-1;
+        start[1] = 0; start[2] = 0;
+        sourceSpace.selectHyperslab(H5S_SELECT_SET, count, start);
+        // TODO: something wrong with dimensions
+        hsize_t length = current_size[1]*current_size[2];
+        H5::DataSpace targetSpace(1, &length);
+        GPU_REALTYPE *hostMem = new GPU_REALTYPE[length];
+        ligData.read(hostMem, HDF5_GPUTYPE, targetSpace, sourceSpace);
+        delete[] hostMem;
+        // TODO: Check if we are rotating the environment by doing this (different storage order hdf5/arrayfire)
+        array gpuMem(current_size[1], current_size[2], hostMem);
+        this->densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), this->hostLigandMapping[ligand.ligandId]) =
+                gpuMem.T();
+
+        this->ligands_storage[ligand.ligandId] = std::unique_ptr<H5::DataSet>(new H5::DataSet(ligData));
+    }
+//    af_print(this->densities);
+}
+
+void Environment2D::init() {
+    densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
+    diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)this->ligands.size());
+
+    for(size_t i = 0; i < ligands.size(); i++) {
+        densities(span, span, i) = this->ligands[i].initialConcentration;
+        diffusion_filters(span, span, i) = Environment2D::getLaplacian();
+        diffusion_filters(span, span, i) *= this->ligands[i].diffusionCoefficient/pow(resolution, 2);
+    }
+    diffusionEquation.reset(new Diffusion2D(this));
+
+    switch(this->boundaryCondition.type) {
+        case BC_NEUMANN:
+        default:
+            this->applyBoundaryCondition = std::bind(Environment2D::applyNeumannBC, &this->densities, this->resolution, &this->boundaryCondition);
+            break;
+        case BC_DIRICHELET:
+            this->applyBoundaryCondition = std::bind(Environment2D::applyDericheletBC, &this->densities, &this->boundaryCondition);
+            break;
+        case BC_PERIODIC:
+            this->applyBoundaryCondition = std::bind(Environment2D::applyPeriodicBC, &this->densities);
+            break;
+    }
+}
+
 array Environment2D::getAllDensities() {
     return this->densities(seq(BORDER_SIZE,end-BORDER_SIZE), seq(BORDER_SIZE,end-BORDER_SIZE), span);
 }
@@ -146,8 +203,12 @@ void Environment2D::evalDensities() {
 }
 
 void Environment2D::setupStorage(unique_ptr<H5::Group> storage)  {
-    // Store reference to group
-    this->storage = std::move(storage);
+    // Let parent init name, dt and boundary condition
+    Environment::setupStorage(std::move(storage));
+
+    // Define datatypes and dataspaces for strings
+    H5::StrType varstrtype(0, H5T_VARIABLE);
+    H5::DataSpace scalar(H5S_SCALAR);
 
     // Setup dimensions of datasets
     // TODO: this is the size in units and not the true dimension
@@ -166,9 +227,7 @@ void Environment2D::setupStorage(unique_ptr<H5::Group> storage)  {
     hsize_t chunk_dims[3] = {4, dims[0], dims[1] };
     properties.setChunk(3, chunk_dims);
 
-    // Define datatypes and dataspaces for strings
-    H5::StrType varstrtype(0, H5T_VARIABLE);
-    H5::DataSpace scalar(H5S_SCALAR);
+
     for(auto ligand: this->ligands){
         H5::DataSet liganddataset = H5::DataSet(this->storage->createDataSet(ligand.name, H5::PredType::IEEE_F64LE, dataSpace, properties));
         liganddataset.createAttribute("Name", varstrtype, scalar).write(varstrtype, ligand.name);
@@ -197,8 +256,8 @@ void Environment2D::save() {
 
     // TODO: Maybe replace this with one copy operation of complete array and then writing via hyperslap
     for(auto ligand: this->ligands) {
-        // Copy data from GPU
-        GPU_REALTYPE *data = this->getDensity(ligand.ligandId).host<GPU_REALTYPE>();
+        // Copy data from GPU and transpose (col first vs row first order in hdf5)
+        GPU_REALTYPE *data = this->getDensity(ligand.ligandId).T().host<GPU_REALTYPE>();
 
         // Extend storage space
         this->ligands_storage[ligand.ligandId]->extend(new_size);
@@ -219,40 +278,6 @@ void Environment2D::closeStorage() {
     this->ligands_storage.clear();
     this->storage.reset();
 }
-
-Environment2D::Environment2D(H5::Group group) : Environment(group) {
-    init();
-    int nLigands = group.getNumObjs();
-    for(int i = 0; i < nLigands; i++) {
-        // TODO
-    }
-}
-
-void Environment2D::init() {
-    densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
-    diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)settings.ligands.size());
-
-    for(size_t i = 0; i < ligands.size(); i++) {
-        densities(span, span, i) = this->ligands[i].initialConcentration;
-        diffusion_filters(span, span, i) = Environment2D::getLaplacian();
-        diffusion_filters(span, span, i) *= this->ligands[i].diffusionCoefficient/pow(resolution, 2);
-    }
-    diffusionEquation.reset(new Diffusion2D(this));
-
-    switch(this->boundaryCondition.type) {
-        case BC_NEUMANN:
-        default:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyNeumannBC, &this->densities, this->resolution, &this->boundaryCondition);
-            break;
-        case BC_DIRICHELET:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyDericheletBC, &this->densities, &this->boundaryCondition);
-            break;
-        case BC_PERIODIC:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyPeriodicBC, &this->densities);
-            break;
-    }
-}
-
 
 array Environment2D::Diffusion2D::rateofchange(array &input) {
     array changes = constant(0, parent->densities.dims());

@@ -24,10 +24,10 @@ class BacterialPopulation {
 public:
     static shared_ptr<BacterialPopulation> createFromGroup(shared_ptr<Environment2D> env, H5::Group group);
     std::string name;
-
     virtual void interactWithEnv(int individual) = 0;
     virtual void interactWithEnv(array individuals) = 0;
 
+    virtual std::string getType() = 0;
     virtual int getSize() = 0;
     virtual array getXpos() = 0;
     virtual array getYpos() = 0;
@@ -37,6 +37,10 @@ public:
     virtual void setupStorage(H5::Group storage) = 0;
     virtual void save() = 0;
     virtual void closeStorage() = 0;
+protected:
+    void setupBaseStorage(H5::Group storage);
+    void restoreBaseStorage(H5::Group storage);
+    shared_ptr<H5::Group> storage;
 };
 
 // This allows bacterial populations to be registered and later initialized based on a type string and a H5Group

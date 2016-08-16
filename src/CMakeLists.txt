@@ -40,12 +40,12 @@ if(NO_GRAPHICS)
     add_definitions(-DNO_GRAPHICS)
 endif()
 
-set(LIGANDS General/Ligand.cpp General/Ligand.h)
+set(GENERAL General/GpuHelper.h General/GpuHelper.cpp General/Ligand.cpp General/Ligand.h)
 set(ENVIRONEMENTS Environments/BoundaryCondition.h Environments/BoundaryCondition.cpp Environments/Environment.h Environments/Environment.cpp Environments/Environment2D.h Environments/Environment2D.cpp)
 set(BACTERIA BacterialPopulations/BacterialPopulation.cpp BacterialPopulations/ExamplePopulation.cpp)
 set(SOLVERS Solvers/Solver.cpp Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp)
 set(MODELS Models/Model2D.h Models/Model2D.cpp )
-set(SOURCE ${LIGANDS} ${ENVIRONEMENTS} ${BACTERIA} ${SOLVERS} ${MODELS})
+set(SOURCE ${GENERAL} ${ENVIRONEMENTS} ${BACTERIA} ${SOLVERS} ${MODELS})
 
 # There are several ways of compiling source code in CMake. In most cases you
 # specify the source files to an ADD_EXCUTABLE call. Because we intend to
@@ -54,8 +54,9 @@ set(SOURCE ${LIGANDS} ${ENVIRONEMENTS} ${BACTERIA} ${SOLVERS} ${MODELS})
 # Here we take a different approach to compilation. We build all of the source
 # files into a CMake object library and then link this library against the
 # different ArrayFire backends.
-ADD_LIBRARY(AFDIFF_CORE OBJECT main.cpp ${SOURCE})
-
+ADD_LIBRARY(LIB OBJECT ${SOURCE})
+ADD_LIBRARY(AF_CREATE OBJECT create.cpp)
+ADD_LIBRARY(AF_SIMULATE OBJECT simulate.cpp)
 if(APPLE)
     SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
     SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
@@ -66,9 +67,12 @@ endif()
 # ArrayFire CPU backend
 if(${ArrayFire_CPU_FOUND})
     MESSAGE(STATUS "ArrayFire CPU backend found. Enabling CPU benchmark")
-    ADD_EXECUTABLE(afdiff-cpu $<TARGET_OBJECTS:AFDIFF_CORE>)
-    TARGET_LINK_LIBRARIES(afdiff-cpu ${LIBHDF5_LIBRARIES} ${ArrayFire_CPU_LIBRARIES}
+    ADD_EXECUTABLE(create-cpu $<TARGET_OBJECTS:AF_CREATE> $<TARGET_OBJECTS:LIB>)
+    TARGET_LINK_LIBRARIES(create-cpu ${LIBHDF5_LIBRARIES} ${ArrayFire_CPU_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT})
+    ADD_EXECUTABLE(simulate-cpu $<TARGET_OBJECTS:AF_SIMULATE> $<TARGET_OBJECTS:LIB>)
+    TARGET_LINK_LIBRARIES(simulate-cpu ${LIBHDF5_LIBRARIES} ${ArrayFire_CPU_LIBRARIES}
+            ${CMAKE_THREAD_LIBS_INIT})
 ENDIF()
 
 
@@ -77,9 +81,12 @@ FIND_PACKAGE(OpenCL)
 IF(${ArrayFire_OpenCL_FOUND} AND ${OpenCL_FOUND})
     # We need to find OpenCL as transitive linking is disabled on some OSes
     MESSAGE(STATUS "ArrayFire OpenCL backend found. Enabling OpenCL benchmark")
-    ADD_EXECUTABLE(afdiff-opencl $<TARGET_OBJECTS:AFDIFF_CORE>)
-    TARGET_LINK_LIBRARIES(afdiff-opencl ${LIBHDF5_LIBRARIES} ${ArrayFire_OpenCL_LIBRARIES}
+    ADD_EXECUTABLE(create-opencl $<TARGET_OBJECTS:AF_CREATE> $<TARGET_OBJECTS:LIB>)
+    TARGET_LINK_LIBRARIES(create-opencl ${LIBHDF5_LIBRARIES} ${ArrayFire_OpenCL_LIBRARIES}
         ${OpenCL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+    ADD_EXECUTABLE(simulate-opencl $<TARGET_OBJECTS:AF_SIMULATE> $<TARGET_OBJECTS:LIB>)
+    TARGET_LINK_LIBRARIES(simulate-opencl ${LIBHDF5_LIBRARIES} ${ArrayFire_OpenCL_LIBRARIES}
+            ${OpenCL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
 ENDIF()
 
 # ArrayFire CUDA backend
@@ -90,7 +97,10 @@ IF(${ArrayFire_CUDA_FOUND} AND ${CUDA_FOUND})
     FIND_PACKAGE(NVVM REQUIRED)
     MESSAGE(STATUS ${CUDA_TOOLKIT_ROOT_DIR})
     MESSAGE(STATUS "ArrayFire CUDA found. Enabling CUDA benchmark")
-    ADD_EXECUTABLE(afdiff-cuda $<TARGET_OBJECTS:AFDIFF_CORE>)
+    ADD_EXECUTABLE(create-cuda $<TARGET_OBJECTS:AF_CREATE> $<TARGET_OBJECTS:LIB>)
     TARGET_LINK_LIBRARIES(afdiff-cuda ${LIBHDF5_LIBRARIES} ${ArrayFire_CUDA_LIBRARIES}
         ${CMAKE_THREAD_LIBS_INIT} ${CUDA_LIBRARIES} ${NVVM_LIB})
+    ADD_EXECUTABLE(simulate-cuda $<TARGET_OBJECTS:AF_SIMULATE> $<TARGET_OBJECTS:LIB>)
+    TARGET_LINK_LIBRARIES(simulate-cuda ${LIBHDF5_LIBRARIES} ${ArrayFire_CUDA_LIBRARIES}
+            ${CMAKE_THREAD_LIBS_INIT} ${CUDA_LIBRARIES} ${NVVM_LIB})
 ENDIF()

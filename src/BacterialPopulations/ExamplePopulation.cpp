@@ -149,56 +149,13 @@ void ExamplePopulation::setupStorage(H5::Group storage) {
 }
 
 void ExamplePopulation::save() {
-    if(!this->storage)
+    if (!this->storage)
         return;
 
-    H5::DataSpace targetSpace;
-
-
-    hsize_t current_size[2], new_size[2];
-    // Take a probe, and calculate the new size after adding data, all dimensions are the same
-    this->xposStorage->getSpace().getSimpleExtentDims(current_size);
-    new_size[0] = current_size[0] + 1;
-    new_size[1] = current_size[1];
-
-    // Parameters for hyperslap
-    hsize_t count[2] = {1, current_size[1]};
-    hsize_t start[2] = {current_size[0], 0};
-
-    // infer source dimensions
-    H5::DataSpace sourceSpace(1, &current_size[1]);
-
-    // Save xpos
-    GPU_REALTYPE *data = this->xpos.host<GPU_REALTYPE>();
-    this->xposStorage->extend(new_size);
-    targetSpace = this->xposStorage->getSpace();
-    targetSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    this->xposStorage->write(data, HDF5_GPUTYPE, sourceSpace, targetSpace);
-    af::freeHost(data);
-
-    // Save ypos
-    data = this->ypos.host<GPU_REALTYPE>();
-    this->yposStorage->extend(new_size);
-    targetSpace = this->yposStorage->getSpace();
-    targetSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    this->yposStorage->write(data, HDF5_GPUTYPE, sourceSpace, targetSpace);
-    af::freeHost(data);
-
-    // Save angle
-    data = this->angle.host<GPU_REALTYPE>();
-    this->angleStorage->extend(new_size);
-    targetSpace = this->angleStorage->getSpace();
-    targetSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    this->angleStorage->write(data, HDF5_GPUTYPE, sourceSpace, targetSpace);
-    af::freeHost(data);
-
-    // Save tumbling
-    char *bdata = this->tumbling.host<char>();
-    this->tumblingStorage->extend(new_size);
-    targetSpace = this->tumblingStorage->getSpace();
-    targetSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-    this->tumblingStorage->write(bdata, H5::PredType::NATIVE_CHAR, sourceSpace, targetSpace);
-    af::freeHost(bdata);
+    GpuHelper::appendDataToDataSet<GPU_REALTYPE>(xpos, *xposStorage, HDF5_GPUTYPE);
+    GpuHelper::appendDataToDataSet<GPU_REALTYPE>(ypos, *yposStorage, HDF5_GPUTYPE);
+    GpuHelper::appendDataToDataSet<GPU_REALTYPE>(angle, *angleStorage, HDF5_GPUTYPE);
+    GpuHelper::appendDataToDataSet<char>(tumbling, *tumblingStorage, H5::PredType::NATIVE_CHAR);
 }
 
 void ExamplePopulation::closeStorage() {

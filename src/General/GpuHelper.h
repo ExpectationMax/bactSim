@@ -74,6 +74,49 @@ public:
         output.eval();
         return output;
     }
+    template <class T> static void appendDataToDataSet(array data, DataSet target, DataType H5MemoryType){
+        // read dims from HDF5
+        DataSpace targetSpace = target.getSpace();
+        hsize_t ndims = targetSpace.getSimpleExtentNdims();
+        hsize_t *dims = new hsize_t[ndims];
+        targetSpace.getSimpleExtentDims(dims);
+
+        // extend dims to contain another timepoint
+        hsize_t *newdims = new hsize_t[ndims];
+        std::copy(dims, dims+ndims, newdims);
+        newdims[0] += 1;
+        target.extend(newdims);
+        targetSpace = target.getSpace();
+
+        // select region for storage
+        hsize_t *start = new hsize_t[ndims];
+        hsize_t *count = new hsize_t[ndims];
+        start[0] = dims[0];
+        for(int i = 1; i < ndims; i++)
+            start[i] = 0;
+        std::copy(dims, dims+ndims, count);
+        count[0] = 1;
+        targetSpace.selectHyperslab(H5S_SELECT_SET, count, start);
+
+        // calculate source space
+        hsize_t nelements = 0;
+        for(int  i = 1; i < ndims; i++)
+            nelements += dims[i];
+        H5::DataSpace sourceSpace(1, &nelements);
+
+        // Copy data from gpu
+        T *hostMem;
+        if(ndims - 1 < 2)
+            // 2D data must be transposed due to col-major storage
+            hostMem = data.T().host<T>();
+        else
+            // 1D data, must not be transposed
+            hostMem = data.host<T>();
+
+        // Write data to Dataset
+        target.write(hostMem, H5MemoryType, sourceSpace, targetSpace);
+        af::freeHost(hostMem);
+    }
 };
 
 

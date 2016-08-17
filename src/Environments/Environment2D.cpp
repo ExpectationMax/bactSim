@@ -3,7 +3,7 @@
 //
 
 #include "Environment2D.h"
-#include <ios>
+#include "General/GpuHelper.h"
 
 
 array Environment2D::getLaplacian() {
@@ -23,31 +23,11 @@ Environment2D::Environment2D(H5::Group group) : Environment(group) {
     hsize_t current_size[3], count[3], start[3];
     for(auto ligand: this->ligands) {
         H5::DataSet ligData = group.openDataSet(ligand.name);
-        H5::DataSpace sourceSpace = ligData.getSpace();
-
-        sourceSpace.getSimpleExtentDims(current_size);
-        // Read last time step
-        count[0] = 1;
-        count[1] = current_size[1];
-        count[2] = current_size[2];
-
-        start[0] = current_size[0]-1;
-        start[1] = 0; start[2] = 0;
-        sourceSpace.selectHyperslab(H5S_SELECT_SET, count, start);
-        // TODO: something wrong with dimensions
-        hsize_t length = current_size[1]*current_size[2];
-        H5::DataSpace targetSpace(1, &length);
-        GPU_REALTYPE *hostMem = new GPU_REALTYPE[length];
-        ligData.read(hostMem, HDF5_GPUTYPE, targetSpace, sourceSpace);
-        delete[] hostMem;
-        // TODO: Check if we are rotating the environment by doing this (different storage order hdf5/arrayfire)
-        array gpuMem(current_size[1], current_size[2], hostMem);
         this->densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), this->hostLigandMapping[ligand.ligandId]) =
-                gpuMem.T();
+                GpuHelper::loadLastDataToGpu<GPU_REALTYPE>(ligData, HDF5_GPUTYPE, AF_GPUTYPE);
 
         this->ligands_storage[ligand.ligandId] = std::unique_ptr<H5::DataSet>(new H5::DataSet(ligData));
     }
-//    af_print(this->densities);
 }
 
 void Environment2D::init() {
@@ -243,34 +223,9 @@ void Environment2D::save() {
     if(!this->storage)
         return;
 
-    hsize_t current_size[3], new_size[3];
-    // Take a probe, aqnd calculate the new size after adding data
-    this->ligands_storage.begin()->second->getSpace().getSimpleExtentDims(current_size);
-    new_size[0] = current_size[0] + 1;
-    new_size[1] = current_size[1];
-    new_size[2] = current_size[2];
-
-    // Parameters for hyperslap
-    hsize_t count[3] = {1, new_size[1], new_size[2]};
-    hsize_t start[3] = {current_size[0], 0, 0};
-
     // TODO: Maybe replace this with one copy operation of complete array and then writing via hyperslap
-    for(auto ligand: this->ligands) {
-        // Copy data from GPU and transpose (col first vs row first order in hdf5)
-        GPU_REALTYPE *data = this->getDensity(ligand.ligandId).T().host<GPU_REALTYPE>();
-
-        // Extend storage space
-        this->ligands_storage[ligand.ligandId]->extend(new_size);
-        // Define which data to write to where
-        H5::DataSpace targetspace = this->ligands_storage[ligand.ligandId]->getSpace();
-        targetspace.selectHyperslab(H5S_SELECT_SET, count, start);
-        hsize_t dataLength = new_size[1]*new_size[2];
-
-        H5::DataSpace sourceSpace(1, &dataLength);
-        this->ligands_storage[ligand.ligandId]->write(data, HDF5_GPUTYPE, sourceSpace, targetspace);
-        // Free allocated memory
-        af::freeHost(data);
-    }
+    for(auto ligand: this->ligands)
+        GpuHelper::appendDataToDataSet<GPU_REALTYPE>(this->getDensity(ligand.ligandId), *this->ligands_storage[ligand.ligandId], HDF5_GPUTYPE);
 }
 
 void Environment2D::closeStorage() {

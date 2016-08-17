@@ -74,6 +74,7 @@ public:
         output.eval();
         return output;
     }
+
     template <class T> static void appendDataToDataSet(array data, DataSet target, DataType H5MemoryType){
         // read dims from HDF5
         DataSpace targetSpace = target.getSpace();
@@ -99,9 +100,9 @@ public:
         targetSpace.selectHyperslab(H5S_SELECT_SET, count, start);
 
         // calculate source space
-        hsize_t nelements = 0;
+        hsize_t nelements = 1;
         for(int  i = 1; i < ndims; i++)
-            nelements += dims[i];
+            nelements *= dims[i];
         H5::DataSpace sourceSpace(1, &nelements);
 
         // Copy data from gpu

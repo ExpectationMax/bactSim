@@ -40,7 +40,7 @@ if(NO_GRAPHICS)
     add_definitions(-DNO_GRAPHICS)
 endif()
 
-set(GENERAL General/GpuHelper.h General/GpuHelper.cpp General/Ligand.cpp General/Ligand.h)
+set(GENERAL General/Helper.h General/Helper.cpp General/Ligand.cpp General/Ligand.h)
 set(ENVIRONEMENTS Environments/BoundaryCondition.h Environments/BoundaryCondition.cpp Environments/Environment.h Environments/Environment.cpp Environments/Environment2D.h Environments/Environment2D.cpp)
 set(BACTERIA BacterialPopulations/BacterialPopulation.cpp BacterialPopulations/ExamplePopulation.cpp)
 set(SOLVERS Solvers/Solver.cpp Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp)

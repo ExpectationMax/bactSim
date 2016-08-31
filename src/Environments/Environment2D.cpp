@@ -3,7 +3,7 @@
 //
 
 #include "Environment2D.h"
-#include "General/GpuHelper.h"
+#include "General/Helper.h"
 
 
 array Environment2D::getLaplacian() {
@@ -24,7 +24,7 @@ Environment2D::Environment2D(H5::Group group) : Environment(group) {
     for(auto ligand: this->ligands) {
         H5::DataSet ligData = group.openDataSet(ligand.name);
         this->densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), this->hostLigandMapping[ligand.ligandId]) =
-                GpuHelper::loadLastDataToGpu<GPU_REALTYPE>(ligData, HDF5_GPUTYPE, AF_GPUTYPE);
+                Helper::loadLastDataToGpu<GPU_REALTYPE>(ligData, HDF5_GPUTYPE, AF_GPUTYPE);
 
         this->ligands_storage[ligand.ligandId] = std::unique_ptr<H5::DataSet>(new H5::DataSet(ligData));
     }
@@ -225,7 +225,7 @@ void Environment2D::save() {
 
     // TODO: Maybe replace this with one copy operation of complete array and then writing via hyperslap
     for(auto ligand: this->ligands)
-        GpuHelper::appendDataToDataSet<GPU_REALTYPE>(this->getDensity(ligand.ligandId), *this->ligands_storage[ligand.ligandId], HDF5_GPUTYPE);
+        Helper::appendDataToDataSet<GPU_REALTYPE>(this->getDensity(ligand.ligandId), *this->ligands_storage[ligand.ligandId], HDF5_GPUTYPE);
 }
 
 void Environment2D::closeStorage() {

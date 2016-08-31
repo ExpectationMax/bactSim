@@ -3,7 +3,7 @@
 //
 
 #include "ExamplePopulation.h"
-#include "General/GpuHelper.h"
+#include "General/Helper.h"
 
 ExamplePopulation::ExamplePopulation(std::string name, shared_ptr<Environment2D> env, ExampleParameters params) : env(env), params(params) {
     this->name = name;
@@ -152,10 +152,10 @@ void ExamplePopulation::save() {
     if (!this->storage)
         return;
 
-    GpuHelper::appendDataToDataSet<GPU_REALTYPE>(xpos, *xposStorage, HDF5_GPUTYPE);
-    GpuHelper::appendDataToDataSet<GPU_REALTYPE>(ypos, *yposStorage, HDF5_GPUTYPE);
-    GpuHelper::appendDataToDataSet<GPU_REALTYPE>(angle, *angleStorage, HDF5_GPUTYPE);
-    GpuHelper::appendDataToDataSet<char>(tumbling, *tumblingStorage, H5::PredType::NATIVE_CHAR);
+    Helper::appendDataToDataSet<GPU_REALTYPE>(xpos, *xposStorage, HDF5_GPUTYPE);
+    Helper::appendDataToDataSet<GPU_REALTYPE>(ypos, *yposStorage, HDF5_GPUTYPE);
+    Helper::appendDataToDataSet<GPU_REALTYPE>(angle, *angleStorage, HDF5_GPUTYPE);
+    Helper::appendDataToDataSet<char>(tumbling, *tumblingStorage, H5::PredType::NATIVE_CHAR);
 }
 
 void ExamplePopulation::closeStorage() {
@@ -224,19 +224,19 @@ ExamplePopulation::ExamplePopulation(shared_ptr<Environment2D> Env, H5::Group gr
     this->init();
 
     H5::DataSet xpos = group.openDataSet("xpos");
-    this->xpos = GpuHelper::loadLastDataToGpu<GPU_REALTYPE>(xpos, HDF5_GPUTYPE, AF_GPUTYPE);
+    this->xpos = Helper::loadLastDataToGpu<GPU_REALTYPE>(xpos, HDF5_GPUTYPE, AF_GPUTYPE);
     this->xposStorage.reset(new DataSet(xpos));
 
     H5::DataSet ypos = group.openDataSet("ypos");
-    this->ypos = GpuHelper::loadLastDataToGpu<GPU_REALTYPE>(ypos, HDF5_GPUTYPE, AF_GPUTYPE);
+    this->ypos = Helper::loadLastDataToGpu<GPU_REALTYPE>(ypos, HDF5_GPUTYPE, AF_GPUTYPE);
     this->yposStorage.reset(new DataSet(ypos));
 
     H5::DataSet angle = group.openDataSet("angle");
-    this->angle = GpuHelper::loadLastDataToGpu<GPU_REALTYPE>(angle, HDF5_GPUTYPE, AF_GPUTYPE);
+    this->angle = Helper::loadLastDataToGpu<GPU_REALTYPE>(angle, HDF5_GPUTYPE, AF_GPUTYPE);
     this->angleStorage.reset(new DataSet(angle));
 
     H5::DataSet tumbling = group.openDataSet("tumbling");
-    this->tumbling = GpuHelper::loadLastDataToGpu<char>(tumbling, H5::PredType::NATIVE_CHAR, af::dtype::b8);
+    this->tumbling = Helper::loadLastDataToGpu<char>(tumbling, H5::PredType::NATIVE_CHAR, af::dtype::b8);
     this->tumblingStorage.reset(new DataSet(tumbling));
 
     validatePositions();

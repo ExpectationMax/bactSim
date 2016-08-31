@@ -10,7 +10,7 @@
 using namespace af;
 using namespace H5;
 
-class GpuHelper {
+class Helper {
 public:
     template <class T>  static array loadLastDataToGpu(DataSet data, DataType H5MemoryType, dtype arrayfireType)
     {

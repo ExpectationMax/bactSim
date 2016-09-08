@@ -5,9 +5,10 @@
 #ifndef CHEMOHYBRID_GPU_SOLVER_H
 #define CHEMOHYBRID_GPU_SOLVER_H
 
-#import <arrayfire.h>
-#import <memory>
+#include <arrayfire.h>
+#include <memory>
 #include <map>
+#include "General/Types.h"
 
 #define REGISTER_DEC_SOLVER(NAME) \
     static RegisterSolver<NAME> reg; \
@@ -31,7 +32,7 @@ class Solver {
 protected:
     Solver() {};
 public:
-    virtual array solveStep(DifferentialEquation &eq, array &inital_state, double stepsize) const = 0;
+    virtual void solveStep(DifferentialEquation &eq, array &inital_state, GPU_REALTYPE stepsize) const = 0;
     virtual std::string getType() = 0;
 };
 

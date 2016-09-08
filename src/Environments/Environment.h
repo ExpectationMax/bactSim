@@ -5,16 +5,7 @@
 #ifndef PROJECT_NAME_ENVIRONMENT_H
 #define PROJECT_NAME_ENVIRONMENT_H
 
-#define GPU_REALTYPE float
-
-#if GPU_REALTYPE == float
-#define HDF5_GPUTYPE H5::PredType::NATIVE_FLOAT
-#define AF_GPUTYPE f32
-#else
-#define HDF5_GPUTYPE H5::PredType::NATIVE_DOUBLE
-#define AF_GPUTYPE f64
-#endif
-
+#include "General/Types.h"
 #define BORDER_SIZE 1
 #define LAPLACIAN_SIZE 1 + 2 * BORDER_SIZE
 
@@ -73,7 +64,7 @@ protected:
     std::function<void(void)> applyBoundaryCondition;
     //std::function<void(void)> calculateTimeStep;
     void calculateTimeStep() {
-        densities = odesolver->solveStep(*diffusionEquation, densities, dt);
+        odesolver->solveStep(*diffusionEquation, densities, dt);
     }
 
     shared_ptr<Solver> odesolver;

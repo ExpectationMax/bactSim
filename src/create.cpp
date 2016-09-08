@@ -1,11 +1,12 @@
 #include <arrayfire.h>
 #include "Environments/Environment2D.h"
 #include <random>
-#include "BacterialPopulations/ExamplePopulation.h"
+#include "BacterialPopulations/Kollmann2005Population.h"
 #include "Models/Model2D.h"
 #include "Solvers/ForwardEulerSolver.h"
 #include "Solvers/RungeKuttaSolver.h"
-#include <memory>
+
+#define NO_GRAPHICS
 
 int main(int argc, char** argv)
 {
@@ -22,9 +23,9 @@ int main(int argc, char** argv)
 
     // Setup Environment
     EnvironmentSettings ESettings;
+
     ESettings.resolution = 0.5;
-    ESettings.dimensions = std::vector<double> {10, 10};
-    ESettings.dt = 0.008;
+    ESettings.dimensions = std::vector<double> {50, 50};
 
     BoundaryCondition boundaryCondition(BC_PERIODIC);
     boundaryCondition.xpos = 0;
@@ -33,49 +34,55 @@ int main(int argc, char** argv)
 
     // Setup Ligands
 
-    Ligand ligand1 = {"Ligand1", 0, 10, 0.0, 0.0, 10.0};
+    Ligand ligand1 = {"Ligand1", 0, 100, 0.0, 0.0, 100.0};
     ESettings.ligands.push_back(ligand1);
-    Ligand ligand2 = {"Ligand2", 1, 10, 0.0, 0.0, 10.0};
-    ESettings.ligands.push_back(ligand2);
-//    Ligand ligand3 = {"Ligand3", 2, 10.0, 0.0, 0.0, 15.0};
-//    ESettings.ligands.push_back(ligand3);
-//    Ligand ligand4 = {"Ligand4", 3, 10.0, 0.0, 0.05,20.0};
-//    ESettings.ligands.push_back(ligand4);
+//    Ligand ligand2 = {"Ligand2", 1, 10, 0.0, 0.0, 10.0};
+//    ESettings.ligands.push_back(ligand2);
+    shared_ptr<Solver> EnvSolver(static_cast<Solver *>(new ForwardEulerSolver));
+    double largest_D = 0;
+    for(auto ligand: ESettings.ligands)
+        largest_D = std::max(largest_D, (double) ligand.diffusionCoefficient);
 
-    shared_ptr<Solver> solver(static_cast<Solver *>(new RungeKuttaSolver));
-    shared_ptr<Environment2D> simEnv(new Environment2D(ESettings, solver));
+    ESettings.dt =(GPU_REALTYPE) pow(ESettings.resolution, 2)/(largest_D * 4);
+
+    std::cout << "Simulating Environment with stepsize " << ESettings.dt << std::endl;
+
+    shared_ptr<Environment2D> simEnv(new Environment2D(ESettings, EnvSolver));
 
     // Update randomness
     af::setSeed(time(NULL));
 
     std::vector<shared_ptr<BacterialPopulation>> populations;
 
+    shared_ptr<Solver> BactSolver(static_cast<Solver *>(new RungeKuttaSolver));
+
     // Setup population 1
     std::vector<LigandInteraction> ligandInteractions1;
-
-    LigandInteraction interaction11 = {0, 0, 0, 0, 0};
+    LigandInteraction interaction11 = {0, 5, 0, 0, 0};
     ligandInteractions1.push_back(interaction11);
-    LigandInteraction interaction12 = {1, 5, 0, 0, 0};
-    ligandInteractions1.push_back(interaction12);
 
-    ExampleParameters bactParams = {ligandInteractions1, ESettings.dt, 10};
-    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new ExamplePopulation("Ligand 1 eater", simEnv, bactParams, 20))));
+//    LigandInteraction interaction12 = {1,0.2, 0, 0, 0};
+//    ligandInteractions1.push_back(interaction12);
 
-    // Setup population 2
-    std::vector<LigandInteraction> ligandInteractions2;
-//    LigandInteraction interaction21 = {0, 0, 0, 0};
+    Kollmann2005Parameters bactParams = {BactSolver, ligandInteractions1, ESettings.dt, 5};
+    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Kollmann2005Population("Population 1", simEnv, bactParams, 10))));
+
+//    std::vector<LigandInteraction> ligandInteractions2;
+//    LigandInteraction interaction21 = {1,0.2, 0, 0, 0};
 //    ligandInteractions2.push_back(interaction21);
-    LigandInteraction interaction22 = {1, 0, 0, 0, 0};
-    ligandInteractions2.push_back(interaction22);
+//
+//    Kollmann2005Parameters bactParams2 = {BactSolver, ligandInteractions2, ESettings.dt, 10};
+//    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Kollmann2005Population("Population 2", simEnv, bactParams2, 10))));
 
-
-    ExampleParameters bactParams2 = {ligandInteractions2, ESettings.dt, 10};
-    populations.push_back(shared_ptr<BacterialPopulation>(new ExamplePopulation("Ligand2 eater", simEnv, bactParams2, 20)));
 
     // Setup model
     Model2D mymodel(simEnv, populations);
-    mymodel.setupStorage("test.h5");
-    H5::Group testgr;
+    mymodel.setupStorage("test.h5", 1000);
+    mymodel.save();
+    //mymodel.closeStorage();
+    //for (auto pop: populations) {
+    //    pop->printInternals();
+    //}
 
     // Enable visualization
 #ifndef NO_GRAPHICS
@@ -84,12 +91,19 @@ int main(int argc, char** argv)
     Window populationwindow(1024,512, "Populations");
     mymodel.setupVisualizationWindows(diffusionwindow, populationwindow);
 #endif
-
+    int measurementTime = 100;
+    double simulationTime = 400;
     time_t start= time(NULL);
-    mymodel.save();
-    for(int i =0; i < 1/ESettings.dt; i++) {
+    for(int i =0; i < simulationTime/ESettings.dt; i++) {
         mymodel.simulateTimestep();
         mymodel.save();
+        if(i && !(i%measurementTime)) {
+            double seconds = difftime(time(NULL), start);
+            time(&start);
+            std::cout << measurementTime/seconds << " iterations per second" << std::endl;
+            std::cout << "Finished "<< i << " iterations of total " << simulationTime/ESettings.dt << std::endl;
+        }
+
 #ifndef NO_GRAPHICS
         mymodel.visualize();
 #endif

@@ -2,15 +2,15 @@
 // Created by Max Horn on 16/08/16.
 //
 
-#ifndef CHEMOHYBRID_GPU_GPUHELPER_H
-#define CHEMOHYBRID_GPU_GPUHELPER_H
+#ifndef BACTSIM_GPU_STORAGEHELPER_H
+#define BACTSIM_GPU_STORAGEHELPER_H
 
 #include <H5Cpp.h>
 #include <arrayfire.h>
 using namespace af;
 using namespace H5;
 
-class Helper {
+class StorageHelper {
 public:
     template <class T>  static array loadLastDataToGpu(DataSet data, DataType H5MemoryType, dtype arrayfireType)
     {
@@ -33,9 +33,9 @@ public:
         inputSpace.selectHyperslab(H5S_SELECT_SET, count, start);
 
         // create temporary 1D space
-        hsize_t dataLength = 0;
+        hsize_t dataLength = 1;
         for(int i = 1; i < ndims; i++){
-            dataLength += dims[i];
+            dataLength *= dims[i];
         }
         T *temp = new T[dataLength];
         DataSpace tempSpace(1, &dataLength);
@@ -51,11 +51,11 @@ public:
                 break;
             case 2:
                 // Invert order due to col first/row first differences
-                output = array(dims[ndims-1], dims[ndims-2], temp);
+                output = array(dims[ndims-1], dims[ndims-2], temp).T();
                 break;
             case 3:
                 // Don't know if transpose trick works that well here...
-                output = array(dims[ndims-1], dims[ndims-2], dims[ndims-3], temp);
+                output = array(dims[ndims-1], dims[ndims-2], dims[ndims-3], temp).T();
                 break;
             default:
                 throw Exception("Unexpected number of dimensions (loadLastDataToGpu)");
@@ -107,10 +107,11 @@ public:
 
         // Copy data from gpu
         T *hostMem;
-        if(ndims - 1 < 2)
+//        std::cout << ndims << std::endl;
+        if((ndims - 1) == 2) {
             // 2D data must be transposed due to col-major storage
             hostMem = data.T().host<T>();
-        else
+        } else
             // 1D data, must not be transposed
             hostMem = data.host<T>();
 
@@ -118,6 +119,11 @@ public:
         target.write(hostMem, H5MemoryType, sourceSpace, targetSpace);
         af::freeHost(hostMem);
     }
+
+    static H5::DataSpace H5Scalar;
+    static H5::StrType H5VariableString;
+private:
+
 };
 
 

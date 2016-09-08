@@ -5,6 +5,7 @@
 #include "Model2D.h"
 #include <random>
 #include <H5Cpp.h>
+#include <General/StorageHelper.h>
 
 Model2D::Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations):
         env(environment), bacterialPopulations(populations) {
@@ -34,8 +35,8 @@ void Model2D::init() {
 }
 
 void Model2D::simulateTimestep() {
+    // TODO: Implement handling of different dt values --> How?
     std::random_shuffle(&callOrder[0], &callOrder[totalBacteria-1]);
-    // TODO: Remove comments as soon as restor of population state is working
     for(size_t i = 0; i < totalBacteria; i++) {
         bacteriumRef curBacterium = allBacteria[i];
         curBacterium.population->interactWithEnv(curBacterium.individual);
@@ -44,8 +45,9 @@ void Model2D::simulateTimestep() {
     for(auto population: bacterialPopulations) {
         population->liveTimestep();
     }
+    env->evalDensities();
     env->simulateTimeStep();
-
+    simulationsSinceLastSave++;
 }
 
 void Model2D::setupVisualizationWindows(Window &winDiff, Window &winPop) {
@@ -71,7 +73,7 @@ void Model2D::visualize() {
     populationsWin->show();
 }
 
-void Model2D::setupStorage(H5::H5File &output) {
+void Model2D::setupStorage(H5::H5File &output, int saveStepsize) {
     this->storage.reset(new H5::H5File(output));
     // Let environment initialize its group
     unique_ptr<H5::Group> envGroup(new H5::Group(output.createGroup("Environment")));
@@ -84,6 +86,9 @@ void Model2D::setupStorage(H5::H5File &output) {
         H5::Group curPopulation = popGroup.createGroup(population->name);
         population->setupStorage(curPopulation);
     }
+    savestep = saveStepsize;
+    this->storage->createAttribute("saveStep", PredType::INTEL_I32, StorageHelper::H5Scalar).write(PredType::NATIVE_INT, &savestep);
+
 }
 
 void Model2D::closeStorage() {
@@ -96,18 +101,20 @@ void Model2D::closeStorage() {
         this->storage.reset();
 }
 
-void Model2D::setupStorage(std::string path) {
+void Model2D::setupStorage(std::string path, int saveStepsize) {
     H5::H5File thefile (path, H5F_ACC_TRUNC);
-    this->setupStorage(thefile);
+    this->setupStorage(thefile, saveStepsize);
 }
 
 void Model2D::save() {
     if (!this->storage)
         return;
-
-    this->env->save();
-    for (auto population: this->bacterialPopulations) {
-        population->save();
+    if(simulationsSinceLastSave % savestep == 0) {
+        this->env->save();
+        for (auto population: this->bacterialPopulations) {
+            population->save();
+        }
+        simulationsSinceLastSave = 0;
     }
 }
 
@@ -126,4 +133,10 @@ Model2D::Model2D(H5::H5File &input) {
     this->bacterialPopulations = bacterialPopulations;
     init();
     this->storage = unique_ptr<H5::H5File>(new H5::H5File(input));
+    this->storage->openAttribute("saveStep").read(H5::PredType::NATIVE_INT, &savestep);
 }
+
+GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t) {
+    // TODO: implement
+}
+

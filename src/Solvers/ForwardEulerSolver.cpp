@@ -4,8 +4,8 @@
 
 #include "ForwardEulerSolver.h"
 
-array ForwardEulerSolver::solveStep(DifferentialEquation &eq, array &inital_state, double stepsize) const {
-    return inital_state + eq.rateofchange(inital_state)*stepsize;
+void ForwardEulerSolver::solveStep(DifferentialEquation &eq, array &inital_state, GPU_REALTYPE stepsize) const {
+    inital_state += eq.rateofchange(inital_state)*stepsize;
 }
 
 REGISTER_DEF_SOLVER(ForwardEulerSolver);

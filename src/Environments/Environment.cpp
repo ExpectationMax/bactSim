@@ -50,9 +50,10 @@ Environment::Environment(H5::Group group) {
 void Environment::setupVisualizationWindow(Window &win) {
     visualizationWin = &win;
     numLigands = this->ligands.size();
-    if(numLigands > 1)
+    if(numLigands > 1){
         rows = ceil(numLigands / 2);
         visualizationWin->grid(rows, 2);
+    }
 }
 
 void Environment::visualize(double normalizer) {

@@ -3,7 +3,7 @@
 //
 
 #include "Environment2D.h"
-#include "General/Helper.h"
+#include "General/StorageHelper.h"
 
 
 array Environment2D::getLaplacian() {
@@ -24,7 +24,7 @@ Environment2D::Environment2D(H5::Group group) : Environment(group) {
     for(auto ligand: this->ligands) {
         H5::DataSet ligData = group.openDataSet(ligand.name);
         this->densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), this->hostLigandMapping[ligand.ligandId]) =
-                Helper::loadLastDataToGpu<GPU_REALTYPE>(ligData, HDF5_GPUTYPE, AF_GPUTYPE);
+                StorageHelper::loadLastDataToGpu<GPU_REALTYPE>(ligData, HDF5_GPUTYPE, AF_GPUTYPE);
 
         this->ligands_storage[ligand.ligandId] = std::unique_ptr<H5::DataSet>(new H5::DataSet(ligData));
     }
@@ -132,16 +132,12 @@ array Environment2D::getInterpolatedPositions(array &xpos, array &ypos) {
     output(W_TOPRIGHT, span) = ((output(POS_RIGHT, span) - xindex) * (yindex - output(POS_TOP, span)));
     output(W_BOTTOMLEFT, span) = ((xindex - output(POS_LEFT, span)) * (output(POS_BOTTOM, span) - yindex));
     output(W_BOTTOMRIGHT, span) = ((output(POS_RIGHT, span) - xindex) * (output(POS_BOTTOM, span) - yindex));
-    //af_print(output(seq(W_TOPLEFT, W_BOTTOMRIGHT), span));
-    double normalization = pow(this->resolution, -2);
-    output(seq(W_TOPLEFT, W_BOTTOMRIGHT), span) *= normalization;
-    //af_print(output);
-    // eval(output);
+
+    eval(output);
     return output;
 }
 
 array Environment2D::getLigandConcentrations(array posAndWeights, array ligands) {
-
     // We need to tile the weight array along the ligand axis to allow element wise multiplication)
     dim4 tilingDims = {1, 1, 1, 1};
     tilingDims[2] = ligands.dims(0);
@@ -169,13 +165,14 @@ void Environment2D::changeLigandConcentrationBy(array concDifferences, array pos
     array right = posAndWeights(POS_RIGHT);
     array top = posAndWeights(POS_TOP);
     array bottom = posAndWeights(POS_BOTTOM);
+
     // tile is required, to allow element wise calculation between two array datatypes (requires same size)
     // moddims changes the metadata to convert the result array of the calculation into a z vector (required as operation is in place)
     densities(top, left, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPLEFT), concentrations), targetdims);
     densities(top, right, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPRIGHT), concentrations), targetdims);
     densities(bottom, left, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMLEFT), concentrations), targetdims);
     densities(bottom, right, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMRIGHT), concentrations), targetdims);
-    // eval(densities, left, right, top, bottom);
+//    eval(densities, left, right, top, bottom);
 }
 
 void Environment2D::evalDensities() {
@@ -191,7 +188,6 @@ void Environment2D::setupStorage(unique_ptr<H5::Group> storage)  {
     H5::DataSpace scalar(H5S_SCALAR);
 
     // Setup dimensions of datasets
-    // TODO: this is the size in units and not the true dimension
     std::vector<hsize_t> dims;
     for(auto dim: this->internal_dimensions) {
         dims.push_back(static_cast<hsize_t>(dim)-2*BORDER_SIZE);
@@ -225,7 +221,7 @@ void Environment2D::save() {
 
     // TODO: Maybe replace this with one copy operation of complete array and then writing via hyperslap
     for(auto ligand: this->ligands)
-        Helper::appendDataToDataSet<GPU_REALTYPE>(this->getDensity(ligand.ligandId), *this->ligands_storage[ligand.ligandId], HDF5_GPUTYPE);
+        StorageHelper::appendDataToDataSet<GPU_REALTYPE>(this->getDensity(ligand.ligandId), *this->ligands_storage[ligand.ligandId], HDF5_GPUTYPE);
 }
 
 void Environment2D::closeStorage() {

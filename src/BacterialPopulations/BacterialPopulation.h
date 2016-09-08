@@ -2,8 +2,8 @@
 // Created by Max Horn on 22/04/16.
 //
 
-#ifndef CHEMOHYBRID_GPU_BACTERIALPOPULATION_H
-#define CHEMOHYBRID_GPU_BACTERIALPOPULATION_H
+#ifndef BACSIM_GPU_BACTERIALPOPULATION_H
+#define BACSIM_GPU_BACTERIALPOPULATION_H
 
 #import <arrayfire.h>
 #import "Environments/Environment.h"
@@ -13,11 +13,20 @@
 
 #define REGISTER_DEC_TYPE(NAME) \
     static DerivedRegister<NAME> reg; \
-    static const std::string type
+    static const std::string type; \
+    std::string getType() override
+
 
 #define REGISTER_DEF_TYPE(NAME) \
     DerivedRegister<NAME> NAME::reg(#NAME); \
-    const std::string NAME::type = #NAME
+    const std::string NAME::type = #NAME; \
+    std::string NAME::getType() {return NAME::type;}
+
+struct BacterialParameters {
+    BacterialParameters() {};
+    BacterialParameters(GPU_REALTYPE dt) : dt(dt) {};
+    GPU_REALTYPE dt;
+};
 
 
 class BacterialPopulation {
@@ -25,21 +34,27 @@ public:
     static shared_ptr<BacterialPopulation> createFromGroup(shared_ptr<Environment2D> env, H5::Group group);
     std::string name;
     virtual void interactWithEnv(int individual) = 0;
-    virtual void interactWithEnv(array individuals) = 0;
+//    virtual void interactWithEnv(array individuals) = 0;
 
     virtual std::string getType() = 0;
     virtual int getSize() = 0;
     virtual array getXpos() = 0;
     virtual array getYpos() = 0;
+    virtual GPU_REALTYPE getdt();
 
     virtual void liveTimestep() = 0;
 
-    virtual void setupStorage(H5::Group storage) = 0;
-    virtual void save() = 0;
+    virtual void setupStorage(H5::Group storage);
+    virtual bool save() = 0;
     virtual void closeStorage() = 0;
+
+    virtual void printInternals() = 0;
 protected:
+    BacterialPopulation(H5::Group group);
+    BacterialPopulation(BacterialParameters params): params(params) {};
     void setupBaseStorage(H5::Group storage);
-    void restoreBaseStorage(H5::Group storage);
+
+    BacterialParameters params;
     shared_ptr<H5::Group> storage;
 };
 

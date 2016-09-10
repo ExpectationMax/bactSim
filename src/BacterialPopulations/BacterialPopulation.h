@@ -5,11 +5,11 @@
 #ifndef BACSIM_GPU_BACTERIALPOPULATION_H
 #define BACSIM_GPU_BACTERIALPOPULATION_H
 
-#import <arrayfire.h>
-#import "Environments/Environment.h"
+#include <arrayfire.h>
+#include "Environments/Environment.h"
 #include <Environments/Environment2D.h>
-#import "General/Ligand.h"
-#import <map>
+#include "General/Ligand.h"
+#include <map>
 
 #define REGISTER_DEC_TYPE(NAME) \
     static DerivedRegister<NAME> reg; \
@@ -34,7 +34,7 @@ public:
     static shared_ptr<BacterialPopulation> createFromGroup(shared_ptr<Environment2D> env, H5::Group group);
     std::string name;
     virtual void interactWithEnv(int individual) = 0;
-//    virtual void interactWithEnv(array individuals) = 0;
+    virtual void interactWithEnv(array individuals) = 0;
 
     virtual std::string getType() = 0;
     virtual int getSize() = 0;
@@ -48,6 +48,8 @@ public:
     virtual bool save() = 0;
     virtual void closeStorage() = 0;
 
+    array concentrations;
+    virtual array getInterpolatedPositions() = 0;
     virtual void printInternals() = 0;
 protected:
     BacterialPopulation(H5::Group group);

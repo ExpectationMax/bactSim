@@ -6,6 +6,7 @@
 #include <random>
 #include <H5Cpp.h>
 #include <General/StorageHelper.h>
+#include <General/ArrayFireHelper.h>
 
 Model2D::Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations):
         env(environment), bacterialPopulations(populations) {
@@ -16,37 +17,25 @@ void Model2D::init() {
     for(auto population: this->bacterialPopulations) {
         totalBacteria += population->getSize();
     }
-
-    allBacteria = new bacteriumRef[totalBacteria];
-
-    // This array should contain all indexes that can be called on allBacteria
-    callOrder = new unsigned int[totalBacteria];
-    int currentBacterium = 0;
-
-    for(auto population: bacterialPopulations) {
-        int currentSize = population->getSize();
-        for(size_t i = 0; i < currentSize; i++) {
-            allBacteria[currentBacterium].individual = i;
-            allBacteria[currentBacterium].population = population;
-            callOrder[currentBacterium] = currentBacterium;
-            currentBacterium++;
-        }
-    }
 }
 
 void Model2D::simulateTimestep() {
-    // TODO: Implement handling of different dt values --> How?
-    std::random_shuffle(&callOrder[0], &callOrder[totalBacteria-1]);
-    for(size_t i = 0; i < totalBacteria; i++) {
-        bacteriumRef curBacterium = allBacteria[i];
-        curBacterium.population->interactWithEnv(curBacterium.individual);
-    }
+    // Let bacteria interact with environment
+    array successful = processBacteriaParallel();
+    array overlappingBacteria = where(!successful);
+    processOverlappingBacteria(overlappingBacteria);
 
+    // Simulate bacteria
     for(auto population: bacterialPopulations) {
         population->liveTimestep();
     }
-    env->evalDensities();
-    env->simulateTimeStep();
+
+    for(double ddt = 0; ddt < bacterialPopulations[0]->getdt(); ddt += env->dt){
+        // Simulate environment
+        env->evalDensities();
+        env->simulateTimeStep();
+    }
+
     simulationsSinceLastSave++;
 }
 
@@ -138,5 +127,73 @@ Model2D::Model2D(H5::H5File &input) {
 
 GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t) {
     // TODO: implement
+}
+
+array Model2D::processBacteriaParallel() {
+    // Accumulate all interacting grid points from all populations
+    array allPositions(totalBacteria, 4, af::dtype::u32);
+    array indexes(totalBacteria, af::dtype::u32);
+    std::vector<unsigned int> spaces;
+    spaces.resize(bacterialPopulations.size());
+    auto curSpace = 0;
+    for(auto i =0; i<bacterialPopulations.size(); i++){
+        spaces[i] = curSpace;
+        auto curSize = bacterialPopulations[i]->getSize();
+        allPositions(seq(curSpace, curSpace+curSize-1), span) = bacterialPopulations[i]->getInterpolatedPositions();
+        indexes(seq(curSpace, curSpace+curSize-1)) = range(curSize);
+        curSpace += curSize;
+    }
+
+    // Find those bacteria that uniquely interact with grid points --> can be calculated in parallel
+    array filter = ArrayFireHelper::isUnique(allPositions(span, I_TOPLEFT))
+                   && ArrayFireHelper::isUnique(allPositions(span, I_TOPRIGHT))
+                   && ArrayFireHelper::isUnique(allPositions(span, I_BOTTOMLEFT))
+                   && ArrayFireHelper::isUnique(allPositions(span, I_TOPRIGHT));
+
+
+    // Perform parallel calculations
+    for(auto i =0; i<bacterialPopulations.size(); i++){
+        auto popRange = seq(spaces[i], spaces[i]+bacterialPopulations[i]->getSize()-1);
+        array popIndexes = allPositions(popRange);
+        array filtered = filter(popRange);
+        array selector = popIndexes(filtered);
+        bacterialPopulations[i]->interactWithEnv(selector);
+    }
+    return filter;
+}
+
+void Model2D::processOverlappingBacteria(array &overlappingBacteria) {
+    int overlappingCount = overlappingBacteria.dims(0);
+    // randomly process overlapping individuals
+    if(overlappingCount) {
+        std::cout << overlappingCount << " overlaping bacteria." <<std::endl;
+        unsigned int *missed = overlappingBacteria.host<unsigned int>();
+        std::vector<bacteriumRef> missingBacteria;
+        missingBacteria.reserve(overlappingCount);
+        for(auto i = 0; i<overlappingCount; i++) {
+            int missingIndex = missed[i];
+            int startIndex = 0;
+            for(auto j = 0; j<bacterialPopulations.size(); j++) {
+                if(startIndex <= missingIndex && missingIndex < startIndex+bacterialPopulations[j]->getSize()) {
+                    bacteriumRef ref;
+                    ref.population = bacterialPopulations[j];
+                    ref.individual = missingIndex - startIndex;
+                    missingBacteria.push_back(ref);
+                    break;
+                } else
+                    startIndex += bacterialPopulations[j]->getSize();
+            }
+        }
+
+        std::vector<int> seq(overlappingCount);
+        for(auto i = 0; i< overlappingCount; i++)
+            seq[i] = i;
+
+        std::random_shuffle(seq.begin(), seq.end());
+        for(size_t i = 0; i < overlappingCount; i++) {
+            bacteriumRef curBacterium = missingBacteria[seq[i]];
+            curBacterium.population->interactWithEnv(curBacterium.individual);
+        }
+    }
 }
 

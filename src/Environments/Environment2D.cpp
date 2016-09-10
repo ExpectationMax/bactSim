@@ -4,7 +4,7 @@
 
 #include "Environment2D.h"
 #include "General/StorageHelper.h"
-
+#include "General/ArrayFireHelper.h"
 
 array Environment2D::getLaplacian() {
     GPU_REALTYPE data2 [] =
@@ -113,66 +113,85 @@ array Environment2D::getDensity(int ligandId) {
     return this->densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), index);
 }
 
-array Environment2D::getInterpolatedPositions(array &xpos, array &ypos) {
+void Environment2D::setInterpolatedPositions(array &xpos, array &ypos, array &positions, array &weights) {
     array xindex = xpos/this->resolution + BORDER_SIZE;
     array yindex = ypos/this->resolution + BORDER_SIZE;
-
-    xindex = moddims(xindex, 1, xindex.dims(0));
-    yindex = moddims(yindex, 1, yindex.dims(0));
+    array pos = array(xpos.elements(), 4);
+//    xindex = moddims(xindex, 1, xindex.dims(0));
+//    yindex = moddims(yindex, 1, yindex.dims(0));
     //af_print(xindex);
     //af_print(yindex);
-    array output = array(8, xpos.dims(0));
-    output(POS_LEFT, span) = af::floor(xindex);  // Left
-    output(POS_RIGHT, span) = af::ceil(xindex);   // Right
-    output(POS_TOP, span) = af::floor(yindex);  // Top
-    output(POS_BOTTOM, span) = af::ceil(yindex);   // Bottom
-    //af_print(output(seq(POS_LEFT, POS_BOTTOM), span));
-
-    output(W_TOPLEFT, span) = ((xindex - output(POS_LEFT, span)) * (yindex - output(POS_TOP, span)));
-    output(W_TOPRIGHT, span) = ((output(POS_RIGHT, span) - xindex) * (yindex - output(POS_TOP, span)));
-    output(W_BOTTOMLEFT, span) = ((xindex - output(POS_LEFT, span)) * (output(POS_BOTTOM, span) - yindex));
-    output(W_BOTTOMRIGHT, span) = ((output(POS_RIGHT, span) - xindex) * (output(POS_BOTTOM, span) - yindex));
-
-    eval(output);
-    return output;
-}
-
-array Environment2D::getLigandConcentrations(array posAndWeights, array ligands) {
-    // We need to tile the weight array along the ligand axis to allow element wise multiplication)
-    dim4 tilingDims = {1, 1, 1, 1};
-    tilingDims[2] = ligands.dims(0);
-    array left = posAndWeights(POS_LEFT);
-    array right = posAndWeights(POS_RIGHT);
-    array top = posAndWeights(POS_TOP);
-    array bottom = posAndWeights(POS_BOTTOM);
+//    array pos = array(xpos.dims(0), 4, af::dtype::u32);
+    array left = af::floor(xindex);  // Left
+    array right = af::ceil(xindex);   // Right
+    array top = af::floor(yindex);  // Top
+    array bottom = af::ceil(yindex);   // Bottom
+    //af_print(pos(seq(POS_LEFT, POS_BOTTOM), span));
     
-    array ligdensities =
-            densities(top, left, ligands) * tile(posAndWeights(W_TOPLEFT), tilingDims) +
-            densities(top, right, ligands) * tile(posAndWeights(W_TOPRIGHT), tilingDims) +
-            densities(bottom, left, ligands) * tile(posAndWeights(W_BOTTOMLEFT), tilingDims) +
-            densities(bottom, right, ligands) * tile(posAndWeights(W_BOTTOMRIGHT), tilingDims);
+//    array weights = array(xpos.dims(0), 4, AF_GPUTYPE);
+    weights(span, W_TOPLEFT) = (xindex - left) * (yindex - top);
+    weights(span, W_TOPRIGHT) = (right - xindex) * (yindex - top);
+    weights(span, W_BOTTOMLEFT) = (xindex - left) * (bottom - yindex);
+    weights(span, W_BOTTOMRIGHT) = (right - xindex) * (bottom - yindex);
+    
+    positions(span, I_TOPLEFT) = ArrayFireHelper::coordinateIndexing(densities, top, left);
+    positions(span, I_TOPRIGHT) = ArrayFireHelper::coordinateIndexing(densities, top, right);
+    positions(span, I_BOTTOMLEFT) = ArrayFireHelper::coordinateIndexing(densities, bottom, left);
+    positions(span, I_BOTTOMRIGHT) = ArrayFireHelper::coordinateIndexing(densities, bottom, right);
 
-//    eval(ligdensities);
-    return moddims(ligdensities, ligdensities.dims(2));
+    eval(weights, positions);
 }
 
-void Environment2D::changeLigandConcentrationBy(array concDifferences, array posAndWeights, array ligands) {
-    if( concDifferences.dims(0) != ligands.dims(0))
-        throw exception("The number of provided concentrations has to be equal to the number of ligands");
-    dim_t concentrations = concDifferences.dims(0);
-    dim4 targetdims = {1, 1, concentrations};
-    array left = posAndWeights(POS_LEFT);
-    array right = posAndWeights(POS_RIGHT);
-    array top = posAndWeights(POS_TOP);
-    array bottom = posAndWeights(POS_BOTTOM);
+array Environment2D::get_concentrations(array &indexes, array &ligands) {
+    array index = ArrayFireHelper::indexZAxis(densities, indexes, ligands);
+    return moddims(densities(index), indexes.dims(0), ligands.dims(0));
+}
 
+array Environment2D::getLigandConcentrations(array positions, array weights, array ligands) {
+    // We need to tile the weight array along the ligand axis to allow element wise multiplication)
+    dim_t nligands = ligands.dims(0);
+    array topleft = positions(span, I_TOPLEFT);
+    array topright = positions(span, I_TOPRIGHT);
+    array bottomleft = positions(span, I_BOTTOMLEFT);
+    array bottomright = positions(span, I_BOTTOMRIGHT);
+
+    array ligdensities =
+            get_concentrations(topleft, ligands) * tile(weights(span, W_TOPLEFT), 1, nligands) +
+            get_concentrations(topright, ligands) * tile(weights(span, W_TOPRIGHT), 1, nligands) +
+            get_concentrations(bottomleft, ligands) * tile(weights(span, W_BOTTOMLEFT), 1, nligands) +
+            get_concentrations(bottomright, ligands) * tile(weights(span, W_BOTTOMRIGHT), 1, nligands);
+    eval(ligdensities);
+    return ligdensities;
+}
+
+void Environment2D::changeLigandConcentrationBy(array concDifferences, array positions, array weights, array ligands) {
+    int nLigands = ligands.dims(0);
+    if( concDifferences.dims(1) != nLigands)
+        throw exception("The number of provided concentrations has to be equal to the number of ligands");
+
+    array topleft = positions(span, I_TOPLEFT);
+    array topright = positions(span, I_TOPRIGHT);
+    array bottomleft = positions(span, I_BOTTOMLEFT);
+    array bottomright = positions(span, I_BOTTOMRIGHT);
+
+    array alltopleft = ArrayFireHelper::indexZAxis(densities, topleft, ligands);
+    array alltopright = ArrayFireHelper::indexZAxis(densities, topright, ligands);
+    array allbottomleft = ArrayFireHelper::indexZAxis(densities, bottomleft, ligands);
+    array allbottomright = ArrayFireHelper::indexZAxis(densities, bottomright, ligands);
+    densities(alltopleft)  += flat(concDifferences)*tile(weights(span, W_TOPLEFT), nLigands);
+    densities(alltopright)  += flat(concDifferences)*tile(weights(span, W_TOPRIGHT), nLigands);
+    densities(allbottomleft)  += flat(concDifferences)*tile(weights(span, W_BOTTOMLEFT), nLigands);
+    densities(allbottomright)  += flat(concDifferences)*tile(weights(span, W_BOTTOMRIGHT), nLigands);
+    eval(densities);
+//    array tiled = concDifferences * reorder(tile(positions(W_TOPLEFT, span), concentrations), 1, 0);
+//    af_print(tiled);
     // tile is required, to allow element wise calculation between two array datatypes (requires same size)
     // moddims changes the metadata to convert the result array of the calculation into a z vector (required as operation is in place)
-    densities(top, left, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPLEFT), concentrations), targetdims);
-    densities(top, right, ligands) += moddims(concDifferences*tile(posAndWeights(W_TOPRIGHT), concentrations), targetdims);
-    densities(bottom, left, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMLEFT), concentrations), targetdims);
-    densities(bottom, right, ligands) += moddims(concDifferences*tile(posAndWeights(W_BOTTOMRIGHT), concentrations), targetdims);
-//    eval(densities, left, right, top, bottom);
+//    densities(top, left, ligands) += moddims(concDifferences*tile(positions(W_TOPLEFT, span), concentrations), targetdims);
+//    densities(top, right, ligands) += moddims(concDifferences*tile(positions(W_TOPRIGHT, span), concentrations), targetdims);
+//    densities(bottom, left, ligands) += moddims(concDifferences*tile(positions(W_BOTTOMLEFT, span), concentrations), targetdims);
+//    densities(bottom, right, ligands) += moddims(concDifferences*tile(positions(W_BOTTOMRIGHT, span), concentrations), targetdims);
+////    eval(densities, left, right, top, bottom);
 }
 
 void Environment2D::evalDensities() {
@@ -235,8 +254,7 @@ array Environment2D::Diffusion2D::rateofchange(array &input) {
     for (size_t i = 0; i < parent->densities.dims(2); i++) {
         changes(seq(1, end-1), seq(1, end-1), i) = convolve(input(span, span, i),
                                                             parent->diffusion_filters(span, span, i))(seq(1, end-1), seq(1, end-1));
-
-        changes(seq(1, end-1), seq(1, end-1), i) += parent->ligands[i].globalProductionRate
+                                                    + parent->ligands[i].globalProductionRate
                                                     - parent->ligands[i].globalDegradationRate*input(seq(1, end-1), seq(1, end-1), i);
     }
     changes.eval();

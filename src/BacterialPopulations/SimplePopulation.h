@@ -12,7 +12,6 @@ struct SimplePopulationParameters : BacterialParameters {
     SimplePopulationParameters(std::vector<LigandInteraction> interactions, GPU_REALTYPE dt, GPU_REALTYPE swimmSpeed):
             BacterialParameters(dt), interactions(interactions), swimmSpeed(swimmSpeed) {};
     std::vector<LigandInteraction> interactions;
-    unsigned int integrationMultiplyer = 3; // For each simulation step dt integrate equations integrationMultiplyer times by dt/integrationMultiplyer
     GPU_REALTYPE swimmSpeed;
 };
 
@@ -25,17 +24,20 @@ public:
     virtual void printInternals() override;
 
     void interactWithEnv(int individual) override ;
-//    void interactWithEnv(array individuals) override;
+    void interactWithEnv(array individuals) override;
 
     int getSize() override { return size; }
     array getXpos() override { return xpos; }
     array getYpos() override { return ypos; }
 
     void liveTimestep() override;
+    void senseLigandConcentration();
 
     void setupStorage(H5::Group storage) override;
     bool save() override;
     void closeStorage() override;
+
+    virtual array getInterpolatedPositions() override;
 
     REGISTER_DEC_TYPE(SimplePopulation);
 
@@ -60,13 +62,16 @@ protected:
     array angle;
     array atborder;
     array interpolatedPositions;
+    array weights;
+    array sensedConcentration;
     int maxx;
     int maxy;
     int size;
 
     // Bacteria
-    virtual void interactWithEnvPos(array pos, int individual);
-//    virtual void interactWithEnvPos(array pos, array individuals);
+    virtual void interactWithEnvPos(array pos, array w, int individual);
+    virtual void interactWithEnvPos(array pos, array weights, array individuals);
+    virtual array modelUptakeProduction(array ligconc);
     virtual void simulate();
     virtual void move();
 
@@ -74,7 +79,6 @@ protected:
     array uptakeRates;
     array productionRates;
     array ligandmapping;
-    array concentrations;
 
     // Storage
     H5::DataSpace storageSpace;

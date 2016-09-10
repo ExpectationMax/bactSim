@@ -10,15 +10,14 @@
 #include "Solvers/Solver.h"
 #include <H5Cpp.h>
 
-
-#define POS_LEFT 0
-#define POS_RIGHT 1
-#define POS_TOP 2
-#define POS_BOTTOM 3
-#define W_TOPLEFT 4
-#define W_TOPRIGHT 5
-#define W_BOTTOMLEFT 6
-#define W_BOTTOMRIGHT 7
+#define I_TOPLEFT 0
+#define I_TOPRIGHT 1
+#define I_BOTTOMLEFT 2
+#define I_BOTTOMRIGHT 3
+#define W_TOPLEFT 0
+#define W_TOPRIGHT 1
+#define W_BOTTOMLEFT 2
+#define W_BOTTOMRIGHT 3
 
 
 class Environment2D : public Environment {
@@ -38,17 +37,19 @@ class Environment2D : public Environment {
 
     std::map<unsigned int, unique_ptr<H5::DataSet>> ligands_storage;
 
+    array get_concentrations(array &indexes, array &ligands);
+
 public:
     Environment2D(EnvironmentSettings settings, shared_ptr<Solver> solver);
     array getAllDensities() override;
     array getDensity(int) override;
     std::vector<double> getSize() override;
 
-    array getInterpolatedPositions(array &xpos, array &ypos);
+    void setInterpolatedPositions(array &xpos, array &ypos, array &pos, array &weights);
 
-    void changeLigandConcentrationBy(array concDifferences, array posAndWeights, array ligands);
+    void changeLigandConcentrationBy(array concDifferences, array positions, array weights, array ligands);
 
-    array getLigandConcentrations(array posAndWeights, array ligands);
+    array getLigandConcentrations(array positions, array weights, array ligands);
 
     void evalDensities();
 

@@ -13,19 +13,21 @@ SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment2D> e
 void SimplePopulation::init() {
     std::vector<int> ligandIds;
 
-    this->uptakeRates  = array((dim_t)params.interactions.size());
-    this->productionRates = array((dim_t)params.interactions.size());
+    this->uptakeRates  = array(1, (dim_t)params.interactions.size());
+    this->productionRates = array(1, (dim_t)params.interactions.size());
 
     for(size_t i = 0; i < params.interactions.size(); i++) {
         ligandIds.push_back(params.interactions[i].ligandId);
-        uptakeRates(i) = params.interactions[i].uptakeRate;
-        productionRates(i) = params.interactions[i].productionRate;
+        uptakeRates(0, i) = params.interactions[i].uptakeRate;
+        productionRates(0, i) = params.interactions[i].productionRate;
     }
 
     ligandmapping = env->getLigandMapping(ligandIds);
     std::vector<double> size = env->getSize();
     maxx = size[0];
     maxy = size[1];
+
+
 
     switch(env->getBoundaryConditionType()) {
         case BC_PERIODIC:
@@ -37,38 +39,42 @@ void SimplePopulation::init() {
 }
 
 void SimplePopulation::interactWithEnv(int individual) {
-    array pos = interpolatedPositions(span, individual);
-    interactWithEnvPos(pos, individual);
+    interactWithEnvPos(interpolatedPositions(individual, span), weights(individual, span), individual);
 }
 
 // This function could be used to interact with the environment if non-overlaping bacteria
 // (no interactions with same grid points) are passed in the individuals array
-//void SimplePopulation::interactWithEnv(array individuals) {
-//    array pos = interpolatedPositions(span, individuals);
-//    interactWithEnvPos(pos);
-//}
-
-void SimplePopulation::interactWithEnvPos(array pos, int individual) {
-    array ligconcentrations = env->getLigandConcentrations(pos, ligandmapping);
-    array concentrationChange = constant(0, ligconcentrations.dims());
-    for(int i = 0; i < params.integrationMultiplyer; i++) {
-        array change = (-ligconcentrations*uptakeRates + productionRates)*(params.dt/params.integrationMultiplyer);
-        concentrationChange += change;
-        ligconcentrations += change;
-    }
-//    af_print(concentrationChange);
-//    af_print(ligconcentrations);
-    concentrations(individual, span) = ligconcentrations;
-    env->changeLigandConcentrationBy(concentrationChange, pos, ligandmapping);
+void SimplePopulation::interactWithEnv(array individuals) {
+    interactWithEnvPos(interpolatedPositions(individuals, span), weights(individuals, span), individuals);
 }
 
-//void SimplePopulation::interactWithEnvPos(array pos, array individuals) {
+//void SimplePopulation::interactWithEnvPos(array pos, int individual) {
 //    array ligconcentrations = env->getLigandConcentrations(pos, ligandmapping);
-//    array concentrationChange = (-concentrations*uptakeRates + productionRates)*params.dt;
-//    concentrations(span, individuals) = ligconcentrations+concentrationChange;
+//    array concentrationChange = constant(0, ligconcentrations.dims());
+//    for(int i = 0; i < params.integrationMultiplyer; i++) {
+//        array change = (-ligconcentrations*uptakeRates + productionRates)*(params.dt/params.integrationMultiplyer);
+//        concentrationChange += change;
+//        ligconcentrations += change;
+//    }
+////    af_print(concentrationChange);
+////    af_print(ligconcentrations);
+//    concentrations(individual, span) = ligconcentrations;
 //    env->changeLigandConcentrationBy(concentrationChange, pos, ligandmapping);
 //}
 
+void SimplePopulation::interactWithEnvPos(array pos, array w, int individual) {
+    array ligconcentrations = env->getLigandConcentrations(pos, w, ligandmapping);
+    array concentrationChange = modelUptakeProduction(ligconcentrations);
+    concentrations(individual, span) = ligconcentrations+concentrationChange;
+    env->changeLigandConcentrationBy(concentrationChange, pos, w, ligandmapping);
+}
+
+void SimplePopulation::interactWithEnvPos(array pos, array w, array individuals) {
+    array ligconcentrations = env->getLigandConcentrations(pos, w, ligandmapping);
+    array concentrationChange = modelUptakeProduction(ligconcentrations);
+    concentrations(individuals, span) = ligconcentrations+concentrationChange;
+    env->changeLigandConcentrationBy(concentrationChange, pos, w, ligandmapping);
+}
 
 void SimplePopulation::applyPeriodicBoundary(int maxx, int maxy, array &xpos, array &ypos) {
     // x axis
@@ -105,6 +111,7 @@ void SimplePopulation::applySolidBoundary(int maxx, int maxy, array &xpos, array
 }
 
 void SimplePopulation::liveTimestep() {
+    senseLigandConcentration();
     simulate();
     move();
     validatePositions();
@@ -116,7 +123,7 @@ void SimplePopulation::simulate() {
 }
 
 void SimplePopulation::updateInterpolatedPositions() {
-    interpolatedPositions = env->getInterpolatedPositions(xpos, ypos);
+    env->setInterpolatedPositions(xpos, ypos, interpolatedPositions, weights);
 }
 
 void SimplePopulation::move() {
@@ -196,6 +203,8 @@ SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment2D> E
                                      int nBacteria) : SimplePopulation(name, Env, parameters) {
     size = nBacteria;
     concentrations = constant(0, size, params.interactions.size());
+    interpolatedPositions = array(size, 4,  af::dtype::u32);
+    weights = array(size, 4, AF_GPUTYPE);
     randomizeAngle();
 
     array randx = randu(size) * maxx;
@@ -208,6 +217,8 @@ SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment2D> E
         SimplePopulation(name, Env, parameters) {
     size = nBacteria;
     concentrations = constant(0, size, params.interactions.size());
+    interpolatedPositions = array(size, 4,  af::dtype::u32);
+    weights = array(size, 4, AF_GPUTYPE);
     randomizeAngle();
     setPositions(array(size, initialx), array(size, initialy));
 }
@@ -255,19 +266,26 @@ SimplePopulation::SimplePopulation(shared_ptr<Environment2D> Env, H5::Group grou
 REGISTER_DEF_TYPE(SimplePopulation);
 
 void SimplePopulation::printInternals() {
-    std::vector<array> internals;
-    internals.push_back(xpos);
-    internals.push_back(ypos);
-    internals.push_back(angle);
-    internals.push_back(interpolatedPositions);
-    internals.push_back(uptakeRates);
-    internals.push_back(productionRates);
-    internals.push_back(ligandmapping);
+    af_print(xpos);
+    af_print(ypos);
+    af_print(concentrations);
+    af_print(angle);
+    af_print(interpolatedPositions);
+    af_print(uptakeRates);
+    af_print(productionRates);
+    af_print(ligandmapping);
+}
 
-    for(auto a: internals) {
-        af_print(a);
-    }
+void SimplePopulation::senseLigandConcentration() {
 
+}
+
+array SimplePopulation::modelUptakeProduction(array ligconc) {
+    return (-ligconc*tile(uptakeRates, ligconc.dims(0)) + tile(productionRates, ligconc.dims(0)))*params.dt;
+}
+
+array SimplePopulation::getInterpolatedPositions() {
+    return interpolatedPositions;
 }
 
 

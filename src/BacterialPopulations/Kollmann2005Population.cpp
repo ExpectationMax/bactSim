@@ -132,15 +132,12 @@ Kollmann2005Population::Kollmann2005Population(shared_ptr<Environment2D> Env, H5
         H5::DataSet tm = this->storage->openDataSet(TmStream.str());
         Tm[i] = StorageHelper::loadLastDataToGpu<GPU_REALTYPE>(tm, HDF5_GPUTYPE, AF_GPUTYPE);
         TmStorage[i].reset(new DataSet(tm));
-        
-        
+
         TmaStream << "Tma[" << i << "]";
         H5::DataSet tma = this->storage->openDataSet(TmaStream.str());
         Tma[i] = StorageHelper::loadLastDataToGpu<GPU_REALTYPE>(tma, HDF5_GPUTYPE, AF_GPUTYPE);
         TmaStorage[i].reset(new DataSet(tma));
     }
-
-
 }
 
 Kollmann2005Population::Kollmann2005Population(std::string name, shared_ptr<Environment2D> Env,
@@ -153,17 +150,17 @@ Kollmann2005Population::Kollmann2005Population(std::string name, shared_ptr<Envi
 REGISTER_DEF_TYPE(Kollmann2005Population)
 
 void Kollmann2005Population::liveTimestep() {
-    // Movement
-    updateSwimming();
-    move();
-    validatePositions();
-    updateInterpolatedPositions();
-
     // Simulation
     senseLigandConc();
     updateTotalConc();
     updateDividers();
     integrateEquations();
+
+    // Movement
+    updateSwimming();
+    move();
+    validatePositions();
+    updateInterpolatedPositions();
 }
 
 void Kollmann2005Population::updateSwimming() {
@@ -200,7 +197,7 @@ void Kollmann2005Population::updateTotalConc() {
     array T_a = constant(0, size);
     for(int i = 0; i < 5; i++) {
         T_tot += Tm[i];
-        Tma[i] = Tm[i] * params.T_V[i] * (1 - pow(sensedConc, params.T_H)/(pow(sensedConc, params.T_H) + pow(params.T_Km[i], params.T_Km[i])));
+        Tma[i] = Tm[i] * params.T_V[i] * (1 - pow(sensedConc, params.T_H)/(pow(sensedConc, params.T_H) + pow(params.T_Km[i], params.T_H)));
         T_a += Tma[i];
     }
     Tt = T_tot;
@@ -224,8 +221,21 @@ void Kollmann2005Population::updateDividers() {
     eval(Ttdivider, Tadivider);
 }
 
-array Kollmann2005Population::dTm::rateofchange(array &input) {
+void Kollmann2005Population::printInternals() {
+    SimplePopulation::printInternals();
+    af_print(sensedConc);
+    for(int i = 0; i < 5; i++){
+        af_print(Tm[i]);
+        af_print(Tma[i]);
+    }
+    af_print(Ta);
+    af_print(Tt);
+    af_print(Ap);
+    af_print(Bp);
+    af_print(Yp);
+}
 
+array Kollmann2005Population::dTm::rateofchange(array &input) {
     array output =  - p->params.k_R*p->params.R_t*input*p->Ttdivider
                     - p->params.k_B*p->Bp * p->Tma[methylationLevel]*p->Tadivider;
     if(methylationLevel>0)
@@ -245,7 +255,6 @@ array Kollmann2005Population::dAp::rateofchange(array &input) {
     eval(output);
     return output;
 }
-
 
 array Kollmann2005Population::dYp::rateofchange(array &input) {
     array output = + p->params.k_Y*p->Ap*(p->params.Y_t - input) - input* (p->params.k_Z*p->params.Z_t - p->params.g_Y);

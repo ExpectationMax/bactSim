@@ -19,15 +19,11 @@ class Model2D {
     Window *populationsWin;
 #endif
     int totalBacteria = 0;
-    bacteriumRef *allBacteria = NULL;
-    unsigned int *callOrder = NULL;
     unique_ptr<H5::H5File> storage;
 public:
     Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations);
 
     Model2D(H5::H5File &input);
-
-    ~Model2D() { delete[] allBacteria; delete[] callOrder; }
 
     shared_ptr<Environment2D> env;
 
@@ -52,6 +48,8 @@ private:
     void init();
     int simulationsSinceLastSave = 0;
     int savestep = 1;
+    array processBacteriaParallel();
+    void processOverlappingBacteria(array &overlaping);
 };
 
 

@@ -23,7 +23,7 @@ struct Kollmann2005Parameters : SimplePopulationParameters {
     shared_ptr<Solver> odesolver;
 
     // Warning, these following parameters are not actually saved
-
+    unsigned int integrationMultiplyer = 5;
     unsigned int rezeptorMethylationLevels = 5;
 
     // Methylation dependent parameters
@@ -75,6 +75,8 @@ public:
 
     // Simulation
     void liveTimestep() override;
+
+    void printInternals() override;
 
     // Storage
     void setupStorage(H5::Group storage) override;

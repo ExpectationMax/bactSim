@@ -140,7 +140,8 @@ void Environment2D::setInterpolatedPositions(array &xpos, array &ypos, array &po
     positions(span, I_BOTTOMLEFT) = ArrayFireHelper::coordinateIndexing(densities, bottom, left);
     positions(span, I_BOTTOMRIGHT) = ArrayFireHelper::coordinateIndexing(densities, bottom, right);
 
-    eval(weights, positions);
+    positions.eval();
+    weights.eval();
 }
 
 array Environment2D::get_concentrations(array &indexes, array &ligands) {
@@ -261,7 +262,7 @@ void Environment2D::simulateTimestep(double dt) {
         changes(span, span, i) += ligands[i].globalProductionRate - ligands[i].globalDegradationRate*densities(span, span, i);
     }
     densities(seq(1, end-1), seq(1, end-1), span) += changes(seq(1, end-1), seq(1, end-1), span)*dt;
-    eval(densities, changes);
+    eval(densities);
 }
 
 double Environment2D::getStabledt() {

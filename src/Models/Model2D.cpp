@@ -3,7 +3,7 @@
 //
 
 #include "Model2D.h"
-#include <random>
+#include <algorithm>
 #include <H5Cpp.h>
 #include <General/StorageHelper.h>
 #include <General/ArrayFireHelper.h>
@@ -55,7 +55,6 @@ void Model2D::setupVisualizationWindows(Window &winDiff, Window &winPop) {
     if(bacterialPopulations.size() > 1)
         populationsWin->grid(1, bacterialPopulations.size());
 }
-#endif
 
 void Model2D::visualize() {
     if(!populationsWin)
@@ -72,6 +71,7 @@ void Model2D::visualize() {
 
     populationsWin->show();
 }
+#endif
 
 void Model2D::setupStorage(H5::H5File &output, int saveStepsize) {
     this->storage.reset(new H5::H5File(output));

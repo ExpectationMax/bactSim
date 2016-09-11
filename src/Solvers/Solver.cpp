@@ -1,7 +1,7 @@
 //
 // Created by Max Horn on 10/08/16.
 //
-#import "Solver.h"
+#include "Solver.h"
 
 SolverFactory::map_type *SolverFactory::map = NULL;
 

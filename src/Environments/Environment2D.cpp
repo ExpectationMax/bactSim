@@ -14,7 +14,7 @@ array Environment2D::getLaplacian() {
     return array(3, 3, data2);
 }
 
-Environment2D::Environment2D(EnvironmentSettings settings, shared_ptr<Solver> solver) : Environment(settings, solver) {
+Environment2D::Environment2D(EnvironmentSettings settings) : Environment(settings) {
     init();
 }
 
@@ -33,24 +33,26 @@ Environment2D::Environment2D(H5::Group group) : Environment(group) {
 void Environment2D::init() {
     densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
     diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)this->ligands.size());
-
+//    degradationRates = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
+//    productionRates = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
     for(size_t i = 0; i < ligands.size(); i++) {
-        densities(span, span, i) = this->ligands[i].initialConcentration;
+        densities(span, span, i) = ligands[i].initialConcentration;
         diffusion_filters(span, span, i) = Environment2D::getLaplacian();
         diffusion_filters(span, span, i) *= this->ligands[i].diffusionCoefficient/pow(resolution, 2);
+//        degradationRates(span, span, i) = ligands[i].globalDegradationRate;
+//        productionRates(span, span, i) = ligands[i].globalProductionRate;
     }
-    diffusionEquation.reset(new Diffusion2D(this));
 
     switch(this->boundaryCondition.type) {
         case BC_NEUMANN:
-        default:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyNeumannBC, &this->densities, this->resolution, &this->boundaryCondition);
+            applyBoundaryCondition = std::bind(Environment2D::applyNeumannBC, std::ref(densities), resolution, std::ref(boundaryCondition));
             break;
         case BC_DIRICHELET:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyDericheletBC, &this->densities, &this->boundaryCondition);
+            applyBoundaryCondition = std::bind(Environment2D::applyDericheletBC, std::ref(densities), std::ref(boundaryCondition));
             break;
+        default:
         case BC_PERIODIC:
-            this->applyBoundaryCondition = std::bind(Environment2D::applyPeriodicBC, &this->densities);
+            applyBoundaryCondition = std::bind(Environment2D::applyPeriodicBC, std::ref(densities));
             break;
     }
 }
@@ -70,39 +72,38 @@ std::vector<double> Environment2D::getSize() {
     return size;
 }
 
-void Environment2D::applyNeumannBC(array *input, double resolution, BoundaryCondition *bc) {
+void Environment2D::applyNeumannBC(array &input, double resolution, BoundaryCondition &bc) {
     // Y direction
-    input->operator()(0, span, span) = input->operator()(1, span, span) - resolution*bc->yneg;
-    input->operator()(end, span, span) = input->operator()(end-1, span, span) - resolution*bc->ypos;
-    input->eval();
+    input(0, span, span) = input(1, span, span) - resolution*bc.yneg;
+    input(end, span, span) = input(end-1, span, span) - resolution*bc.ypos;
+    eval(input);
     // X direction
-    input->operator()(span, 0, span) = input->operator()(span, 1, span) - resolution*bc->xneg;
-    input->operator()(span, end, span) = input->operator()(span, end-1, span) - resolution*bc->xpos;
-    input->eval();
+    input(span, 0, span) = input(span, 1, span) - resolution*bc.xneg;
+    input(span, end, span) = input(span, end-1, span) - resolution*bc.xpos;
+    eval(input);
 }
 
-void Environment2D::applyDericheletBC(array *input, BoundaryCondition *bc) {
+void Environment2D::applyDericheletBC(array &input, BoundaryCondition &bc) {
     // Y direction
-    input->operator()(0, span, span) = input->operator()(1, span, span)*-1.0 + 2.0*bc->yneg;
-    input->operator()(end, span, span) = input->operator()(end-1, span, span)*-1.0 + 2.0*bc->ypos;
-
+    input(0, span, span) = input(1, span, span)*-1.0 + 2.0*bc.yneg;
+    input(end, span, span) = input(end-1, span, span)*-1.0 + 2.0*bc.ypos;
+    input.eval();
     // X direction
-    input->operator()(span, 0, span) = input->operator()(span, 1, span)*-1.0 + 2.0*bc->xneg;
-    input->operator()(span, end, span) = input->operator()(span, end-1, span)*-1.0 + 2.0*bc->xpos;
-    input->eval();
+    input(span, 0, span) = input(span, 1, span)*-1.0 + 2.0*bc.xneg;
+    input(span, end, span) = input(span, end-1, span)*-1.0 + 2.0*bc.xpos;
+    input.eval();
 }
 
 
-void Environment2D::applyPeriodicBC(array *input) {
-
+void Environment2D::applyPeriodicBC(array &input) {
     // Y direction
-    input->operator()(0, span, span) = input->operator()(end-1, span, span);
-    input->operator()(end, span, span) = input->operator()(1, span, span);
-
+    input(0, span, span) = input(end-1, span, span);
+    input(end, span, span) = input(1, span, span);
+    input.eval();
     // X direction
-    input->operator()(span, 0, span) = input->operator()(span, end-1, span);
-    input->operator()(span, end, span) = input->operator()(span, 1, span);
-    input->eval();
+    input(span, 0, span) = input(span, end-1, span);
+    input(span, end, span) = input(span, 1, span);
+    input.eval();
 }
 
 array Environment2D::getDensity(int ligandId) {
@@ -246,17 +247,26 @@ void Environment2D::save() {
 void Environment2D::closeStorage() {
     // Calls destructor which also calls close
     this->ligands_storage.clear();
-    this->storage.reset();
+    Environment::closeStorage();
 }
 
-array Environment2D::Diffusion2D::rateofchange(array &input) {
-    array changes = constant(0, parent->densities.dims());
-    for (size_t i = 0; i < parent->densities.dims(2); i++) {
-        changes(seq(1, end-1), seq(1, end-1), i) = convolve(input(span, span, i),
-                                                            parent->diffusion_filters(span, span, i))(seq(1, end-1), seq(1, end-1));
-                                                    + parent->ligands[i].globalProductionRate
-                                                    - parent->ligands[i].globalDegradationRate*input(seq(1, end-1), seq(1, end-1), i);
+void Environment2D::simulateTimestep(double dt) {
+    applyBoundaryCondition();
+    array changes = convolve(densities, diffusion_filters);
+//    + productionRates - degradationRates*densities;
+//    changes = convolve(densities, diffusion_filters);
+//    changes += tile(productionRates, densities.dims(0), densities.dims(1));
+//    changes -= tile(degradationRates, densities.dims(0), densities.dims(1))*densities;
+    for (size_t i = 0; i < densities.dims(2); i++) {
+        changes(span, span, i) += ligands[i].globalProductionRate - ligands[i].globalDegradationRate*densities(span, span, i);
     }
-    changes.eval();
-    return changes;
+    densities(seq(1, end-1), seq(1, end-1), span) += changes(seq(1, end-1), seq(1, end-1), span)*dt;
+    eval(densities, changes);
+}
+
+double Environment2D::getStabledt() {
+    double largest_D = 0;
+    for(auto ligand: ligands)
+        largest_D = std::max(largest_D, ligand.diffusionCoefficient);
+    return pow(resolution, 2)/(largest_D * 4);
 }

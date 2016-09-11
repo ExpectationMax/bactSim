@@ -21,7 +21,7 @@ class Model2D {
     int totalBacteria = 0;
     unique_ptr<H5::H5File> storage;
 public:
-    Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations);
+    Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations, double dt);
 
     Model2D(H5::H5File &input);
 
@@ -31,13 +31,16 @@ public:
 
     void simulateTimestep();
 
-    GPU_REALTYPE simulateFor(GPU_REALTYPE t);
+    GPU_REALTYPE simulateFor(GPU_REALTYPE t, bool *continueSim);
 
+#ifndef NO_GRAPHICS
     void setupVisualizationWindows(Window &winDiff, Window &winPop);
 
+    void visualize();
+#endif
     void setupStorage(std::string path, int savestep);
 
-    void visualize();
+
 
     void setupStorage(H5::H5File &output, int savestep);
 
@@ -45,11 +48,16 @@ public:
 
     void save();
 private:
-    void init();
+    double EnvironmentDt;
+//    double PopulationDt;
+    double Modeldt;
     int simulationsSinceLastSave = 0;
     int savestep = 1;
-    array processBacteriaParallel();
-    void processOverlappingBacteria(array &overlaping);
+
+    void init();
+    array processBacteriaParallel(double dt);
+    void processOverlappingBacteria(array &overlaping, double dt);
+
 };
 
 

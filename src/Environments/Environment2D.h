@@ -23,27 +23,25 @@
 class Environment2D : public Environment {
     void init();
     // Boundary condition functions;
-    static void applyNeumannBC(array *input, double resolution, BoundaryCondition *bc);
-    static void applyDericheletBC(array *input,  BoundaryCondition *bc);
-    static void applyPeriodicBC(array *input);
+    std::function<void(void)> applyBoundaryCondition;
+    static void applyNeumannBC(array &input, double resolution, BoundaryCondition &bc);
+    static void applyDericheletBC(array &input,  BoundaryCondition &bc);
+    static void applyPeriodicBC(array &input);
     static array getLaplacian();
 
-    class Diffusion2D : public DifferentialEquation {
-        Environment2D *parent;
-    public:
-        Diffusion2D(Environment2D *par): parent(par) {}
-        virtual array rateofchange(array &input) override;
-    };
-
-    std::map<unsigned int, unique_ptr<H5::DataSet>> ligands_storage;
+//    array degradationRates;
+//    array productionRates;
 
     array get_concentrations(array &indexes, array &ligands);
 
+    std::map<unsigned int, unique_ptr<H5::DataSet>> ligands_storage;
 public:
-    Environment2D(EnvironmentSettings settings, shared_ptr<Solver> solver);
+    Environment2D(EnvironmentSettings settings);
     array getAllDensities() override;
     array getDensity(int) override;
     std::vector<double> getSize() override;
+
+    virtual double getStabledt() override;
 
     void setInterpolatedPositions(array &xpos, array &ypos, array &pos, array &weights);
 
@@ -53,11 +51,13 @@ public:
 
     void evalDensities();
 
-    void closeStorage();
+    virtual void simulateTimestep(double dt) override;
 
-    void setupStorage(unique_ptr<H5::Group> storage);
+    virtual void closeStorage() override;
 
-    void save();
+    virtual void setupStorage(unique_ptr<H5::Group> storage) override;
+
+    virtual void save() override;
 
     Environment2D(H5::Group group);
 };

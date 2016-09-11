@@ -58,11 +58,6 @@ ADD_LIBRARY(LIB OBJECT ${SOURCE})
 ADD_LIBRARY(AF_CREATE OBJECT create.cpp)
 ADD_LIBRARY(AF_SIMULATE OBJECT simulate.cpp)
 ADD_LIBRARY(AF_TEST OBJECT test.cpp)
-if(APPLE)
-    SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
-    SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-    SET(CMAKE_INSTALL_RPATH "/usr/local/lib/")
-endif()
 
 # Build the program, linking specifically with designated backends
 # ArrayFire CPU backend
@@ -78,7 +73,6 @@ if(${ArrayFire_CPU_FOUND})
     TARGET_LINK_LIBRARIES(simulate-cpu ${LIBHDF5_LIBRARIES} ${ArrayFire_CPU_LIBRARIES}
             ${CMAKE_THREAD_LIBS_INIT})
 ENDIF()
-
 
 # ArrayFire OpenCL backend
 FIND_PACKAGE(OpenCL)

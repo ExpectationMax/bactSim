@@ -32,20 +32,22 @@ void SimplePopulation::init() {
     switch(env->getBoundaryConditionType()) {
         case BC_PERIODIC:
             validatePositions = std::bind(SimplePopulation::applyPeriodicBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos));
+            spaciallyLimitedEnv = false;
             break;
         default:
             validatePositions = std::bind(SimplePopulation::applySolidBoundary, maxx, maxy, std::ref(xpos), std::ref(ypos), std::ref(atborder));
+            spaciallyLimitedEnv = true;
     }
 }
 
-void SimplePopulation::interactWithEnv(int individual) {
-    interactWithEnvPos(interpolatedPositions(individual, span), weights(individual, span), individual);
+void SimplePopulation::interactWithEnv(int individual, double dt) {
+    interactWithEnvPos(interpolatedPositions(individual, span), weights(individual, span), individual, dt);
 }
 
 // This function could be used to interact with the environment if non-overlaping bacteria
 // (no interactions with same grid points) are passed in the individuals array
-void SimplePopulation::interactWithEnv(array individuals) {
-    interactWithEnvPos(interpolatedPositions(individuals, span), weights(individuals, span), individuals);
+void SimplePopulation::interactWithEnv(array individuals, double dt) {
+    interactWithEnvPos(interpolatedPositions(individuals, span), weights(individuals, span), individuals, dt);
 }
 
 //void SimplePopulation::interactWithEnvPos(array pos, int individual) {
@@ -62,17 +64,17 @@ void SimplePopulation::interactWithEnv(array individuals) {
 //    env->changeLigandConcentrationBy(concentrationChange, pos, ligandmapping);
 //}
 
-void SimplePopulation::interactWithEnvPos(array pos, array w, int individual) {
+void SimplePopulation::interactWithEnvPos(array pos, array w, int individual, double dt) {
     array ligconcentrations = env->getLigandConcentrations(pos, w, ligandmapping);
-    array concentrationChange = modelUptakeProduction(ligconcentrations);
-    concentrations(individual, span) = ligconcentrations+concentrationChange;
+    array concentrationChange = modelUptakeProductionRate(ligconcentrations);
+    concentrations(individual, span) = ligconcentrations+concentrationChange*dt;
     env->changeLigandConcentrationBy(concentrationChange, pos, w, ligandmapping);
 }
 
-void SimplePopulation::interactWithEnvPos(array pos, array w, array individuals) {
+void SimplePopulation::interactWithEnvPos(array pos, array w, array individuals, double dt) {
     array ligconcentrations = env->getLigandConcentrations(pos, w, ligandmapping);
-    array concentrationChange = modelUptakeProduction(ligconcentrations);
-    concentrations(individuals, span) = ligconcentrations+concentrationChange;
+    array concentrationChange = modelUptakeProductionRate(ligconcentrations);
+    concentrations(individuals, span) = ligconcentrations+concentrationChange*dt;
     env->changeLigandConcentrationBy(concentrationChange, pos, w, ligandmapping);
 }
 
@@ -110,15 +112,15 @@ void SimplePopulation::applySolidBoundary(int maxx, int maxy, array &xpos, array
     atborder =  max(outofrange, 1);
 }
 
-void SimplePopulation::liveTimestep() {
+void SimplePopulation::liveTimestep(double dt) {
     senseLigandConcentration();
-    simulate();
-    move();
+    simulate(dt);
+    move(dt);
     validatePositions();
     updateInterpolatedPositions();
 }
 
-void SimplePopulation::simulate() {
+void SimplePopulation::simulate(double dt) {
 //    concentrations = env->getLigandConcentrations(interpolatedPositions, ligandmapping);
 }
 
@@ -126,9 +128,9 @@ void SimplePopulation::updateInterpolatedPositions() {
     env->setInterpolatedPositions(xpos, ypos, interpolatedPositions, weights);
 }
 
-void SimplePopulation::move() {
-    xpos += cos(angle)*params.swimmSpeed*params.dt;
-    ypos += sin(angle)*params.swimmSpeed*params.dt;
+void SimplePopulation::move(double dt) {
+    xpos += cos(angle)*params.swimmSpeed*dt;
+    ypos += sin(angle)*params.swimmSpeed*dt;
 }
 
 void SimplePopulation::setupStorage(H5::Group storage) {
@@ -138,8 +140,8 @@ void SimplePopulation::setupStorage(H5::Group storage) {
     H5::Attribute swimmSpeed = this->storage->createAttribute("Swimm speed", H5::PredType::IEEE_F64LE, StorageHelper::H5Scalar);
     swimmSpeed.write(HDF5_GPUTYPE, &this->params.swimmSpeed);
 
-    H5::Attribute dt = this->storage->createAttribute("dt", H5::PredType::IEEE_F64LE, StorageHelper::H5Scalar);
-    dt.write(HDF5_GPUTYPE, &this->params.dt);
+//    H5::Attribute dt = this->storage->createAttribute("dt", H5::PredType::IEEE_F64LE, StorageHelper::H5Scalar);
+//    dt.write(HDF5_GPUTYPE, &this->params.dt);
 
     // Store interactions
     hsize_t interCount = this->params.interactions.size();
@@ -277,11 +279,11 @@ void SimplePopulation::printInternals() {
 }
 
 void SimplePopulation::senseLigandConcentration() {
-
+    sensedConcentration = sum(concentrations, 1);
 }
 
-array SimplePopulation::modelUptakeProduction(array ligconc) {
-    return (-ligconc*tile(uptakeRates, ligconc.dims(0)) + tile(productionRates, ligconc.dims(0)))*params.dt;
+array SimplePopulation::modelUptakeProductionRate(array ligconc) {
+    return (-ligconc*tile(uptakeRates, ligconc.dims(0)) + tile(productionRates, ligconc.dims(0)));
 }
 
 array SimplePopulation::getInterpolatedPositions() {

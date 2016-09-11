@@ -21,8 +21,14 @@ else()
     message(WARNING "Profiling is not supported with this compiler.")
 endif()
 
+if(APPLE)
+    SET(CMAKE_SKIP_BUILD_RPATH  FALSE) # orig value FALSE
+    SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+    SET(CMAKE_INSTALL_RPATH "/usr/local/lib/")
+endif()
+
 # indicate we wish for the binaries to be written to the bin directory
-SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR}/bin)
+SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 # we have custom CMake configuration files, tell CMake to use them:
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMakeModules)
 

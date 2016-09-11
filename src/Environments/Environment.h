@@ -28,22 +28,19 @@ using std::shared_ptr;
 
 
 struct EnvironmentSettings {
-    // Definition of Size
+    // Definition of Size and Boundary
     double resolution;
     std::vector<double> dimensions;
+    BoundaryCondition boundaryCondition;
 
     // Definition of ligands
     std::vector<Ligand> ligands;
-
-    //Simulation parameters
-    GPU_REALTYPE dt;
-    BoundaryCondition boundaryCondition;
 };
 
 
 class Environment {
 private:
-    void init(EnvironmentSettings settings, shared_ptr<Solver> odesolver);
+    void init(EnvironmentSettings settings);
 
 protected:
     // Internal arrays
@@ -61,18 +58,9 @@ protected:
     unsigned int numLigands;
     unsigned int rows;
 #endif
-    std::function<void(void)> applyBoundaryCondition;
-    //std::function<void(void)> calculateTimeStep;
-    void calculateTimeStep() {
-        odesolver->solveStep(*diffusionEquation, densities, dt);
-    }
-
-    shared_ptr<Solver> odesolver;
-    unique_ptr<DifferentialEquation> diffusionEquation;
-
     EnvironmentSettings settings;
 
-    Environment(EnvironmentSettings settings, shared_ptr<Solver> odesolver);
+    Environment(EnvironmentSettings settings);
     Environment(H5::Group);
 
     unique_ptr<H5::Group> storage;
@@ -80,8 +68,8 @@ public:
     GPU_REALTYPE dt;
     BoundaryCondition boundaryCondition;
     double resolution;
-
-    void simulateTimeStep(void);
+    virtual double getStabledt() = 0;
+    virtual void simulateTimestep(double dt) = 0;
 #ifndef NO_GRAPHICS
     void visualize(double normalizer);
 #endif
@@ -90,9 +78,10 @@ public:
     virtual array getAllDensities() = 0;
     array getLigandMapping(std::vector<int> ligands);
     void setupVisualizationWindow(Window &win);
-    BoundaryConditionType getBoundaryConditionType() { return boundaryCondition.type; }
-
-    void setupStorage(unique_ptr<H5::Group> unique_ptr);
+    virtual BoundaryConditionType getBoundaryConditionType() { return boundaryCondition.type; }
+    virtual void save() = 0;
+    virtual void setupStorage(unique_ptr<H5::Group> unique_ptr);
+    virtual void closeStorage();
 };
 
 #endif //PROJECT_NAME_ENVIRONMENT_H

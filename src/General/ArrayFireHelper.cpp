@@ -31,9 +31,7 @@ array ArrayFireHelper::isUnique(array A) {
     array counts = reorder(sum(comparison), 1, 0);
     array index = counts == 1;
     array unique = sum(comparison(span, index), 1);
-
     return unique;
-
 }
 
 array ArrayFireHelper::indexZAxis(array &A, array &indexes, array &z) {

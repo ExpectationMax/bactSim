@@ -59,6 +59,9 @@ void Kollmann2005Population::setupStorage(H5::Group mystorage) {
             new H5::DataSet(this->storage->createDataSet("Bp", H5::PredType::IEEE_F64LE, this->storageSpace, this->storageProperties)));
     tauStorage.reset(
             new H5::DataSet(this->storage->createDataSet("tau", H5::PredType::IEEE_F64LE, this->storageSpace, this->storageProperties)));
+    concentrationStorage.reset(
+            new H5::DataSet(this->storage->createDataSet("Concentrations", H5::PredType::IEEE_F64LE, this->storageSpace, this->storageProperties)));
+
     // Rezeptor methylation stages and activities
     for(auto i = 0; i < 5; i++) {
         std::ostringstream TmStream, TmaStream;
@@ -69,7 +72,7 @@ void Kollmann2005Population::setupStorage(H5::Group mystorage) {
         TmaStorage[i].reset(
                 new H5::DataSet(this->storage->createDataSet(TmaStream.str(), H5::PredType::IEEE_F64LE, this->storageSpace, this->storageProperties)));
     }
-
+    senseLigandConcentration();
 }
 
 bool Kollmann2005Population::save() {
@@ -79,6 +82,8 @@ bool Kollmann2005Population::save() {
         StorageHelper::appendDataToDataSet<GPU_REALTYPE>(Bp, *BpStorage, HDF5_GPUTYPE);
         StorageHelper::appendDataToDataSet<GPU_REALTYPE>(Yp, *YpStorage, HDF5_GPUTYPE);
         StorageHelper::appendDataToDataSet<GPU_REALTYPE>(tau, *tauStorage, HDF5_GPUTYPE);
+        StorageHelper::appendDataToDataSet<GPU_REALTYPE>(sensedConcentration, *concentrationStorage, HDF5_GPUTYPE);
+
         for(auto i = 0; i < 5; i++) {
             StorageHelper::appendDataToDataSet<GPU_REALTYPE>(Tm[i], *TmStorage[i], HDF5_GPUTYPE);
             StorageHelper::appendDataToDataSet<GPU_REALTYPE>(Tma[i], *TmaStorage[i], HDF5_GPUTYPE);
@@ -95,6 +100,7 @@ void Kollmann2005Population::closeStorage() {
     BpStorage.reset();
     YpStorage.reset();
     tauStorage.reset();
+    concentrationStorage.reset();
     TmStorage.clear();
     TmaStorage.clear();
     SimplePopulation::closeStorage();
@@ -149,23 +155,25 @@ Kollmann2005Population::Kollmann2005Population(std::string name, shared_ptr<Envi
 
 REGISTER_DEF_TYPE(Kollmann2005Population)
 
-void Kollmann2005Population::liveTimestep() {
+void Kollmann2005Population::liveTimestep(double dt) {
     // Simulation
-    senseLigandConc();
+    senseLigandConcentration();
     updateTotalConc();
-    updateDividers();
-    integrateEquations();
+    calculateDividers();
+    integrateEquations(dt);
 
     // Movement
-    updateSwimming();
-    move();
+    updateSwimming(dt);
+    move(dt);
     validatePositions();
     updateInterpolatedPositions();
+    if(spaciallyLimitedEnv)
+        setBorderBacteriaTumbling();
 }
 
-void Kollmann2005Population::updateSwimming() {
+void Kollmann2005Population::updateSwimming(double dt) {
     // Get new swimming candidates
-    array subset = randu(size, AF_GPUTYPE) < params.pw;
+    array subset = randu(size, AF_GPUTYPE) < (dt/params.pwDivider);
     tau = pow(Yp, params.H_c)/(pow(Yp, params.H_c) + pow(params.K_C, params.H_c));
     array newswimming = !(randu(size, AF_GPUTYPE) < tau);
 
@@ -187,9 +195,9 @@ void Kollmann2005Population::updateSwimming() {
 //    af_print(swimming);
 }
 
-void Kollmann2005Population::move() {
-    xpos += swimming*cos(angle)*params.swimmSpeed*params.dt;
-    ypos += swimming*sin(angle)*params.swimmSpeed*params.dt;
+void Kollmann2005Population::move(double dt) {
+    xpos += swimming*cos(angle)*params.swimmSpeed*dt;
+    ypos += swimming*sin(angle)*params.swimmSpeed*dt;
 }
 
 void Kollmann2005Population::updateTotalConc() {
@@ -197,7 +205,7 @@ void Kollmann2005Population::updateTotalConc() {
     array T_a = constant(0, size);
     for(int i = 0; i < 5; i++) {
         T_tot += Tm[i];
-        Tma[i] = Tm[i] * params.T_V[i] * (1 - pow(sensedConc, params.T_H)/(pow(sensedConc, params.T_H) + pow(params.T_Km[i], params.T_H)));
+        Tma[i] = Tm[i] * params.T_V[i] * (1 - pow(sensedConcentration, params.T_H)/(pow(sensedConcentration, params.T_H) + pow(params.T_Km[i], params.T_H)));
         T_a += Tma[i];
     }
     Tt = T_tot;
@@ -205,17 +213,13 @@ void Kollmann2005Population::updateTotalConc() {
     eval(Tt, T_a);
 }
 
-void Kollmann2005Population::integrateEquations() {
+void Kollmann2005Population::integrateEquations(double dt) {
     for(int i = 0; i < params.integrationMultiplyer; i++)
         for(auto j = 0; j < equations.size(); j++)
-            odesolver->solveStep(*std::get<0>(equations[j]), std::get<1>(equations[j]), params.dt/params.integrationMultiplyer);
+            odesolver->solveStep(*std::get<0>(equations[j]), std::get<1>(equations[j]), dt/params.integrationMultiplyer);
 }
 
-void Kollmann2005Population::senseLigandConc() {
-    sensedConc = sum(concentrations, 1);
-}
-
-void Kollmann2005Population::updateDividers() {
+void Kollmann2005Population::calculateDividers() {
     Ttdivider = 1/(params.K_R + Tt);
     Tadivider = 1/(params.K_B + Ta);
     eval(Ttdivider, Tadivider);
@@ -223,7 +227,7 @@ void Kollmann2005Population::updateDividers() {
 
 void Kollmann2005Population::printInternals() {
     SimplePopulation::printInternals();
-    af_print(sensedConc);
+    af_print(sensedConcentration);
     for(int i = 0; i < 5; i++){
         af_print(Tm[i]);
         af_print(Tma[i]);
@@ -233,6 +237,10 @@ void Kollmann2005Population::printInternals() {
     af_print(Ap);
     af_print(Bp);
     af_print(Yp);
+}
+
+void Kollmann2005Population::setBorderBacteriaTumbling() {
+    swimming = swimming && !atborder;
 }
 
 array Kollmann2005Population::dTm::rateofchange(array &input) {

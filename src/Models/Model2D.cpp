@@ -8,37 +8,44 @@
 #include <General/StorageHelper.h>
 #include <General/ArrayFireHelper.h>
 
-Model2D::Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations):
-        env(environment), bacterialPopulations(populations) {
+Model2D::Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations, double dt):
+        env(environment), bacterialPopulations(populations), Modeldt(dt) {
     init();
 }
 
 void Model2D::init() {
+    double PopulationDt = 0;
     for(auto population: this->bacterialPopulations) {
         totalBacteria += population->getSize();
+//        PopulationDt = std::max(PopulationDt, population->getStabledt());
     }
+    EnvironmentDt = env->getStabledt();
+    // find a fraction of the simulation dt that is close to the stable dt of the env;
+    std::cout << "Stable dt returned by Environment " << EnvironmentDt << std::endl;
+    EnvironmentDt = Modeldt/ceil(Modeldt/EnvironmentDt);
+    std::cout << "Simulating Environment with dt=" << EnvironmentDt << std::endl;
 }
 
 void Model2D::simulateTimestep() {
     // Let bacteria interact with environment
-    array successful = processBacteriaParallel();
+    array successful = processBacteriaParallel(Modeldt);
     array overlappingBacteria = where(!successful);
-    processOverlappingBacteria(overlappingBacteria);
+    processOverlappingBacteria(overlappingBacteria, Modeldt);
 
     // Simulate bacteria
     for(auto population: bacterialPopulations) {
-        population->liveTimestep();
+        population->liveTimestep(Modeldt);
     }
 
-    for(double ddt = 0; ddt < bacterialPopulations[0]->getdt(); ddt += env->dt){
+    for(double ddt = 0; ddt < Modeldt; ddt += EnvironmentDt){
         // Simulate environment
+        env->simulateTimestep(EnvironmentDt);
         env->evalDensities();
-        env->simulateTimeStep();
     }
-
     simulationsSinceLastSave++;
 }
 
+#ifndef NO_GRAPHICS
 void Model2D::setupVisualizationWindows(Window &winDiff, Window &winPop) {
     winDiff.setTitle("Ligand diffusion");
     env->setupVisualizationWindow(winDiff);
@@ -48,8 +55,12 @@ void Model2D::setupVisualizationWindows(Window &winDiff, Window &winPop) {
     if(bacterialPopulations.size() > 1)
         populationsWin->grid(1, bacterialPopulations.size());
 }
+#endif
 
 void Model2D::visualize() {
+    if(!populationsWin)
+        return;
+
     double normalizer = max<double>(env->getAllDensities());
     env->visualize(normalizer);
     if(bacterialPopulations.size() > 1) {
@@ -77,13 +88,15 @@ void Model2D::setupStorage(H5::H5File &output, int saveStepsize) {
     }
     savestep = saveStepsize;
     this->storage->createAttribute("saveStep", PredType::INTEL_I32, StorageHelper::H5Scalar).write(PredType::NATIVE_INT, &savestep);
-
+    this->storage->createAttribute("dt", PredType::INTEL_F64, StorageHelper::H5Scalar).write(PredType::NATIVE_DOUBLE, &Modeldt);
+    this->storage->createAttribute("Environment dt", PredType::INTEL_F64, StorageHelper::H5Scalar).write(PredType::NATIVE_DOUBLE, &EnvironmentDt);
 }
 
 void Model2D::closeStorage() {
     for(auto population: this->bacterialPopulations) {
         population->closeStorage();
     }
+
     this->env->closeStorage();
 
     if(this->storage)
@@ -120,16 +133,39 @@ Model2D::Model2D(H5::H5File &input) {
 
     this->env = environment;
     this->bacterialPopulations = bacterialPopulations;
+    this->storage->openAttribute("dt").read(H5::PredType::NATIVE_DOUBLE, &Modeldt);
     init();
     this->storage = unique_ptr<H5::H5File>(new H5::H5File(input));
     this->storage->openAttribute("saveStep").read(H5::PredType::NATIVE_INT, &savestep);
+    this->storage->openAttribute("Environment dt").read(H5::PredType::NATIVE_DOUBLE, &EnvironmentDt);
+
 }
 
-GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t) {
-    // TODO: implement
+GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t, bool *continueSim) {
+    int iterations = floor(t/Modeldt);
+    time_t start = time(NULL);
+    int i;
+    for(i = 0; i < iterations; i++) {
+        if(continueSim && !(*continueSim))
+            break;
+
+        simulateTimestep();
+        save();
+        if(i && !(i%100)) {
+            double seconds = difftime(time(NULL), start);
+            std::cout << 100 / seconds << " iterations per second" << std::endl;
+            std::cout << "Simulated " << i * Modeldt << "/" << iterations * Modeldt << std::endl;
+            std::cout << "ETA: " << (iterations - i) / (60 * (100 / seconds)) << " min" << std::endl;
+            time(&start);
+        }
+#ifndef NO_GRAPHICS
+        visualize();
+#endif
+    }
+    return (i-1)*Modeldt;
 }
 
-array Model2D::processBacteriaParallel() {
+array Model2D::processBacteriaParallel(double dt) {
     // Accumulate all interacting grid points from all populations
     array allPositions(totalBacteria, 4, af::dtype::u32);
     array indexes(totalBacteria, af::dtype::u32);
@@ -157,16 +193,16 @@ array Model2D::processBacteriaParallel() {
         array popIndexes = allPositions(popRange);
         array filtered = filter(popRange);
         array selector = popIndexes(filtered);
-        bacterialPopulations[i]->interactWithEnv(selector);
+        bacterialPopulations[i]->interactWithEnv(selector, dt);
     }
     return filter;
 }
 
-void Model2D::processOverlappingBacteria(array &overlappingBacteria) {
+void Model2D::processOverlappingBacteria(array &overlappingBacteria, double dt) {
     int overlappingCount = overlappingBacteria.dims(0);
     // randomly process overlapping individuals
     if(overlappingCount) {
-        std::cout << overlappingCount << " overlaping bacteria." <<std::endl;
+//        std::cout << overlappingCount << " overlaping bacteria." <<std::endl;
         unsigned int *missed = overlappingBacteria.host<unsigned int>();
         std::vector<bacteriumRef> missingBacteria;
         missingBacteria.reserve(overlappingCount);
@@ -192,7 +228,7 @@ void Model2D::processOverlappingBacteria(array &overlappingBacteria) {
         std::random_shuffle(seq.begin(), seq.end());
         for(size_t i = 0; i < overlappingCount; i++) {
             bacteriumRef curBacterium = missingBacteria[seq[i]];
-            curBacterium.population->interactWithEnv(curBacterium.individual);
+            curBacterium.population->interactWithEnv(curBacterium.individual, dt);
         }
     }
 }

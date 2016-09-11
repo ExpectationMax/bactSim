@@ -9,8 +9,8 @@
 
 struct SimplePopulationParameters : BacterialParameters {
     SimplePopulationParameters() {};
-    SimplePopulationParameters(std::vector<LigandInteraction> interactions, GPU_REALTYPE dt, GPU_REALTYPE swimmSpeed):
-            BacterialParameters(dt), interactions(interactions), swimmSpeed(swimmSpeed) {};
+    SimplePopulationParameters(std::vector<LigandInteraction> interactions, GPU_REALTYPE swimmSpeed):
+            interactions(interactions), swimmSpeed(swimmSpeed) {};
     std::vector<LigandInteraction> interactions;
     GPU_REALTYPE swimmSpeed;
 };
@@ -23,15 +23,16 @@ public:
 
     virtual void printInternals() override;
 
-    void interactWithEnv(int individual) override ;
-    void interactWithEnv(array individuals) override;
+    void interactWithEnv(int individual, double dt) override ;
+    void interactWithEnv(array individuals, double dt) override;
 
     int getSize() override { return size; }
     array getXpos() override { return xpos; }
     array getYpos() override { return ypos; }
+    virtual double getStabledt() override {return 0.1;};
 
-    void liveTimestep() override;
-    void senseLigandConcentration();
+    void liveTimestep(double dt) override;
+    virtual void senseLigandConcentration();
 
     void setupStorage(H5::Group storage) override;
     bool save() override;
@@ -67,13 +68,13 @@ protected:
     int maxx;
     int maxy;
     int size;
-
+    bool spaciallyLimitedEnv = false;
     // Bacteria
-    virtual void interactWithEnvPos(array pos, array w, int individual);
-    virtual void interactWithEnvPos(array pos, array weights, array individuals);
-    virtual array modelUptakeProduction(array ligconc);
-    virtual void simulate();
-    virtual void move();
+    virtual void interactWithEnvPos(array pos, array w, int individual, double dt);
+    virtual void interactWithEnvPos(array pos, array weights, array individuals, double dt);
+    virtual array modelUptakeProductionRate(array ligconc);
+    virtual void simulate(double dt);
+    virtual void move(double dt);
 
     SimplePopulationParameters params;
     array uptakeRates;
@@ -86,6 +87,7 @@ protected:
     unique_ptr<H5::DataSet> xposStorage;
     unique_ptr<H5::DataSet> yposStorage;
     unique_ptr<H5::DataSet> angleStorage;
+
 };
 
 

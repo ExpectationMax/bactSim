@@ -13,10 +13,9 @@ using namespace af;
 struct Kollmann2005Parameters : SimplePopulationParameters {
     Kollmann2005Parameters() : SimplePopulationParameters() {};
     Kollmann2005Parameters(shared_ptr<Solver> odesolver, std::vector<LigandInteraction> interactions, GPU_REALTYPE dt, GPU_REALTYPE swimmSpeed):
-            SimplePopulationParameters(interactions, dt, swimmSpeed), odesolver(odesolver) {};
+            SimplePopulationParameters(interactions, swimmSpeed), odesolver(odesolver) {};
     Kollmann2005Parameters(SimplePopulationParameters paramsBase) {
         this->interactions = paramsBase.interactions;
-        this->dt = paramsBase.dt;
         this->swimmSpeed = paramsBase.swimmSpeed;
     }
 
@@ -61,7 +60,7 @@ struct Kollmann2005Parameters : SimplePopulationParameters {
     GPU_REALTYPE Y_t = 9.7; // uM
     GPU_REALTYPE Z_t = 3.8; // uM
 
-    GPU_REALTYPE pw = dt/(0.2 * 1.53);
+    GPU_REALTYPE pwDivider = (0.2 * 1.53);
 };
 
 class Kollmann2005Population : public SimplePopulation {
@@ -74,8 +73,8 @@ public:
     Kollmann2005Population(shared_ptr<Environment2D> Env, H5::Group group);
 
     // Simulation
-    void liveTimestep() override;
-
+    void liveTimestep(double dt) override;
+    virtual double getStabledt() override {return params.integrationMultiplyer*0.002; };
     void printInternals() override;
 
     // Storage
@@ -90,7 +89,7 @@ protected:
 
     // Simulation
 
-    void move() override;
+    void move(double dt) override;
 
     // Parameters
     Kollmann2005Parameters params;
@@ -113,7 +112,6 @@ protected:
     array tau;
 
     // Values stored for accelleration
-    array sensedConc;
     array Ttdivider;
     array Tadivider;
 
@@ -128,6 +126,7 @@ protected:
     unique_ptr<H5::DataSet> ApStorage;
     unique_ptr<H5::DataSet> YpStorage;
     unique_ptr<H5::DataSet> BpStorage;
+    unique_ptr<H5::DataSet> concentrationStorage;
 
 private:
     // Differential Equations
@@ -170,13 +169,11 @@ private:
 
 
     std::vector<std::tuple<unique_ptr<DifferentialEquation>,array&>> equations;
-    void updateSwimming();
-    void senseLigandConc();
+    void updateSwimming(double dt);
     void calculateDividers();
-    void integrateEquations();
+    void integrateEquations(double dt);
     void updateTotalConc();
-
-    void updateDividers();
+    void setBorderBacteriaTumbling();
 };
 
 

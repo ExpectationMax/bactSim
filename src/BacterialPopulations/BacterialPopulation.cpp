@@ -31,14 +31,10 @@ shared_ptr<BacterialPopulation> BacterialPopulation::createFromGroup(shared_ptr<
     return BacteriaFactory::createInstance(type, env, group);
 }
 
-GPU_REALTYPE BacterialPopulation::getdt() {
-    return params.dt;
-}
-
 BacterialPopulation::BacterialPopulation(H5::Group group) {
     this->storage.reset(new H5::Group(group));
     this->storage->openAttribute("Name").read(StorageHelper::H5VariableString, this->name);
-    this->storage->openAttribute("dt").read(HDF5_GPUTYPE, &params.dt);
+//    this->storage->openAttribute("dt").read(HDF5_GPUTYPE, &params.dt);
 }
 
 void BacterialPopulation::setupStorage(H5::Group storage) {

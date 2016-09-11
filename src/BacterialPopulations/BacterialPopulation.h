@@ -24,8 +24,6 @@
 
 struct BacterialParameters {
     BacterialParameters() {};
-    BacterialParameters(GPU_REALTYPE dt) : dt(dt) {};
-    GPU_REALTYPE dt;
 };
 
 
@@ -33,16 +31,16 @@ class BacterialPopulation {
 public:
     static shared_ptr<BacterialPopulation> createFromGroup(shared_ptr<Environment2D> env, H5::Group group);
     std::string name;
-    virtual void interactWithEnv(int individual) = 0;
-    virtual void interactWithEnv(array individuals) = 0;
+    virtual void interactWithEnv(int individual, double dt) = 0;
+    virtual void interactWithEnv(array individuals, double dt) = 0;
 
     virtual std::string getType() = 0;
     virtual int getSize() = 0;
     virtual array getXpos() = 0;
     virtual array getYpos() = 0;
-    virtual GPU_REALTYPE getdt();
 
-    virtual void liveTimestep() = 0;
+    virtual void liveTimestep(double dt) = 0;
+    virtual double getStabledt() = 0;
 
     virtual void setupStorage(H5::Group storage);
     virtual bool save() = 0;
@@ -54,7 +52,6 @@ public:
 protected:
     BacterialPopulation(H5::Group group);
     BacterialPopulation(BacterialParameters params): params(params) {};
-    void setupBaseStorage(H5::Group storage);
 
     BacterialParameters params;
     shared_ptr<H5::Group> storage;

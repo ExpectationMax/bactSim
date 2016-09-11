@@ -4,8 +4,8 @@
 
 #include "Environment.h"
 
-Environment::Environment(EnvironmentSettings settings, shared_ptr<Solver> odesolver) {
-    this->init(settings, odesolver);
+Environment::Environment(EnvironmentSettings settings) {
+    this->init(settings);
 }
 
 Environment::Environment(H5::Group group) {
@@ -13,7 +13,7 @@ Environment::Environment(H5::Group group) {
     H5::StrType varstrtype(0, H5T_VARIABLE);
 
     // Environment parameters
-    group.openAttribute("dt").read(HDF5_GPUTYPE, &envSettings.dt);
+//    group.openAttribute("dt").read(HDF5_GPUTYPE, &envSettings.dt);
     group.openAttribute("Resolution").read(H5::PredType::NATIVE_DOUBLE, &envSettings.resolution);
     group.openAttribute("Boundary condition").read(BoundaryCondition::getH5ReadType(), &envSettings.boundaryCondition);
 
@@ -41,7 +41,7 @@ Environment::Environment(H5::Group group) {
         ligandData.openAttribute("Properties").read(Ligand::getH5ReadType(), &lig);
         envSettings.ligands.push_back(lig);
     }
-    Environment::init(envSettings, solver);
+    Environment::init(envSettings);
     this->storage.reset(new H5::Group(group));
 }
 
@@ -72,11 +72,6 @@ void Environment::visualize(double normalizer) {
 }
 #endif
 
-void Environment::simulateTimeStep(void) {
-    this->applyBoundaryCondition();
-    this->calculateTimeStep();
-}
-
 array Environment::getLigandMapping(std::vector<int> ligandIds) {
     array mapping = constant(0, ligandIds.size(), u16);
 
@@ -86,12 +81,10 @@ array Environment::getLigandMapping(std::vector<int> ligandIds) {
     return mapping;
 }
 
-void Environment::init(EnvironmentSettings settings, shared_ptr<Solver> odesolver) {
+void Environment::init(EnvironmentSettings settings) {
     this->settings = settings;
-    this->odesolver = odesolver;
     this->ligands = settings.ligands;
 
-    this->dt = settings.dt;
     this->resolution = settings.resolution;
     this->boundaryCondition = settings.boundaryCondition;
 
@@ -127,8 +120,8 @@ void Environment::setupStorage(unique_ptr<H5::Group> storage) {
     H5::DataSpace scalar(H5S_SCALAR);
     H5::StrType varstrtype(0, H5T_VARIABLE);
 
-    this->storage->createAttribute("dt", H5::PredType::IEEE_F64LE, scalar)
-            .write(HDF5_GPUTYPE, &this->dt);
+//    this->storage->createAttribute("dt", H5::PredType::IEEE_F64LE, scalar)
+//            .write(HDF5_GPUTYPE, &this->dt);
     this->storage->createAttribute("Resolution", H5::PredType::IEEE_F64LE, scalar)
             .write(H5::PredType::NATIVE_DOUBLE, &this->resolution);
     this->storage->createAttribute("Boundary condition", BoundaryCondition::getH5SaveType(), scalar)
@@ -138,8 +131,10 @@ void Environment::setupStorage(unique_ptr<H5::Group> storage) {
     H5::DataSpace dimSpace(1, &ndims);
     this->storage->createAttribute("Dimensions", H5::PredType::IEEE_F64LE, dimSpace)
             .write(H5::PredType::NATIVE_DOUBLE, this->settings.dimensions.data());
+}
 
-    this->storage->createAttribute("Solver", varstrtype, scalar).write(varstrtype, this->odesolver->getType());
+void Environment::closeStorage() {
+    this->storage.reset();
 }
 
 

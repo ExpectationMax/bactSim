@@ -42,3 +42,13 @@ array ArrayFireHelper::indexZAxis(array &A, array &indexes, array &z) {
     return scaledZIndexes + scaledXYIndexes;
 }
 
+std::tuple<array, array, array> ArrayFireHelper::getOriginalIndexes(array &A, array &indexes) {
+    dim4 dim = A.dims();
+    array x, y, z, zremain;
+    z = af::floor(indexes/(dim[0]*dim[1]));
+    zremain = mod(indexes, (dim[0]*dim[1]));
+    y = af::floor(zremain/dim[0]);
+    x = mod(zremain, dim[0]);
+    return std::make_tuple(x, y, z);
+}
+

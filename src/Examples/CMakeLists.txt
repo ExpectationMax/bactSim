@@ -1,0 +1,31 @@
+ADD_LIBRARY(EX1 OBJECT Example1.cpp Example2.cpp)
+
+if(${ArrayFire_CPU_FOUND})
+    MESSAGE(STATUS "ArrayFire CPU backend found. Enabling CPU benchmark")
+    ADD_EXECUTABLE(Example1-cpu $<TARGET_OBJECTS:EX1> $<TARGET_OBJECTS:LIB>)
+    TARGET_LINK_LIBRARIES(Example1-cpu  ${LIBHDF5_LIBRARIES} ${ArrayFire_CPU_LIBRARIES}
+            ${CMAKE_THREAD_LIBS_INIT})
+ENDIF()
+
+# ArrayFire OpenCL backend
+FIND_PACKAGE(OpenCL)
+IF(${ArrayFire_OpenCL_FOUND} AND ${OpenCL_FOUND})
+    # We need to find OpenCL as transitive linking is disabled on some OSes
+    MESSAGE(STATUS "ArrayFire OpenCL backend found. Enabling OpenCL benchmark")
+    ADD_EXECUTABLE(Example1-opencl $<TARGET_OBJECTS:EX1> $<TARGET_OBJECTS:LIB>)
+    TARGET_LINK_LIBRARIES(Example1-opencl  ${LIBHDF5_LIBRARIES} ${ArrayFire_OpenCL_LIBRARIES}
+            ${OpenCL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
+ENDIF()
+
+# ArrayFire CUDA backend
+FIND_PACKAGE(CUDA)
+IF(${ArrayFire_CUDA_FOUND} AND ${CUDA_FOUND})
+    # We need to find CUDA and NVVM as transitive linking is disabled on some OSes
+    FIND_PACKAGE(CUDA REQUIRED)
+    FIND_PACKAGE(NVVM REQUIRED)
+    MESSAGE(STATUS ${CUDA_TOOLKIT_ROOT_DIR})
+    MESSAGE(STATUS "ArrayFire CUDA found. Enabling CUDA benchmark")
+    ADD_EXECUTABLE(Example1-cuda $<TARGET_OBJECTS:EX1> $<TARGET_OBJECTS:LIB>)
+    TARGET_LINK_LIBRARIES(Example1-cuda ${LIBHDF5_LIBRARIES} ${ArrayFire_CUDA_LIBRARIES}
+            ${CMAKE_THREAD_LIBS_INIT} ${CUDA_LIBRARIES} ${NVVM_LIB})
+ENDIF()

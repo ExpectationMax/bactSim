@@ -37,38 +37,39 @@ int main(int argc, char** argv)
     EnvironmentSettings ESettings;
 
     ESettings.resolution = 2;
-    ESettings.dimensions = std::vector<double> {200, 200};
+    ESettings.dimensions = std::vector<double> {50, 50};
 
     BoundaryCondition boundaryCondition(BC_NEUMANN);
-    boundaryCondition.xpos = -20;
+    boundaryCondition.xpos = 0;
     boundaryCondition.ypos = 0;
     ESettings.boundaryCondition = boundaryCondition;
 
     // Setup Ligands
-    Ligand ligand1 = {"Ligand1", 0, 10, 0.0, 0.02, 500.0};
+    Ligand ligand1 = {"Food", 0, 100, 0.0, 0.0, 500.0};
     ESettings.ligands.push_back(ligand1);
-//    Ligand ligand2 = {"Ligand2", 1,  5, 0.0, 1.0, 500.0};
+//    Ligand ligand2 = {"Attractor", 1,  5, 0.0, 0.5, 500.0};
 //    ESettings.ligands.push_back(ligand2);
 
     shared_ptr<Environment2D> simEnv(new Environment2D(ESettings));
 
-    GPU_REALTYPE bactdt = 0.009;
+    GPU_REALTYPE bactdt = 0.01;
 
     // Update randomness
     af::setSeed(time(NULL));
 
     std::vector<shared_ptr<BacterialPopulation>> populations;
 
-    shared_ptr<Solver> BactSolver(static_cast<Solver *>(new RungeKuttaSolver));
+    shared_ptr<Solver> BactSolver(static_cast<Solver *>(new ForwardEulerSolver));
 
     // Setup population 1
     std::vector<LigandInteraction> ligandInteractions1;
-    LigandInteraction interaction11 = {0, 5, 0, 0, 0};
+    LigandInteraction interaction11 = {0, 0, 0, 0, 0};
+//    LigandInteraction interaction12 = {1,   0, 0, 0, 0};
     ligandInteractions1.push_back(interaction11);
+//    ligandInteractions1.push_back(interaction12);
 
-    Kollmann2005Parameters bactParams = {BactSolver, ligandInteractions1, bactdt, 20};
-    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Kollmann2005Population("Population 1", simEnv, bactParams, 10))));
-
+    Kollmann2005Parameters bactParams = {BactSolver, ligandInteractions1, 20};
+    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Kollmann2005Population("Population 1", simEnv, bactParams, 300))));
 
 //    std::vector<LigandInteraction> ligandInteractions2;
 //    LigandInteraction interaction21 = {1,0.8, 0, 0, 0};
@@ -90,7 +91,7 @@ int main(int argc, char** argv)
 #endif
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
-    double simulationTime = 100;
+    double simulationTime = 800;
     double simulatedTime = mymodel.simulateFor(simulationTime, &continueSimulation);
     std::cout << "Simulated for " << simulatedTime << " of " << simulationTime << std::endl;
     mymodel.closeStorage();

@@ -24,8 +24,8 @@ public:
 class LigandInteraction {
 public:
     unsigned int ligandId;
-    double uptakeRate;
     double productionRate;
+    double uptakeRate;
     double Kon;
     double Koff;
     static H5::CompType getH5SaveType();

@@ -8,6 +8,7 @@
 #include "Environment.h"
 #include <vector>
 #include "Solvers/Solver.h"
+#include "General/CoordinateIndexer.h"
 #include <H5Cpp.h>
 
 #define I_TOPLEFT 0
@@ -35,6 +36,9 @@ class Environment2D : public Environment {
     array get_concentrations(array &indexes, array &ligands);
 
     std::map<unsigned int, unique_ptr<H5::DataSet>> ligands_storage;
+
+    CoordinateIndexer densityIndexer;
+
 public:
     Environment2D(EnvironmentSettings settings);
     array getAllDensities() override;

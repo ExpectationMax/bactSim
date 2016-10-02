@@ -13,6 +13,7 @@ struct SimplePopulationParameters : BacterialParameters {
             interactions(interactions), swimmSpeed(swimmSpeed) {};
     std::vector<LigandInteraction> interactions;
     GPU_REALTYPE swimmSpeed;
+    unsigned int integrationMultiplyer = 5;
 };
 
 class SimplePopulation : public BacterialPopulation {
@@ -48,10 +49,11 @@ protected:
     void randomizeAngle();
     void setPositions(array x, array y);
     void init();
+    void initializeArrays();
 
     // Boundary
-    static void applyPeriodicBoundary(int maxx, int maxy, array &xpos, array &ypos);
-    static void applySolidBoundary(int maxx, int maxy, array &xpos, array &ypos, array &atborder);
+    static void applyPeriodicBoundary(double maxx, double maxy, array &xpos, array &ypos);
+    static void applySolidBoundary(double maxx, double maxy, array &xpos, array &ypos, array &atborder);
 
     // Environment
     void updateInterpolatedPositions();
@@ -65,8 +67,8 @@ protected:
     array interpolatedPositions;
     array weights;
     array sensedConcentration;
-    int maxx;
-    int maxy;
+    double maxx;
+    double maxy;
     int size;
     bool spaciallyLimitedEnv = false;
     // Bacteria

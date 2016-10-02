@@ -25,11 +25,6 @@ Environment::Environment(H5::Group group) {
     envSettings.dimensions.resize(ndim);
     dimsAttr.read(H5::PredType::NATIVE_DOUBLE, envSettings.dimensions.data());
 
-    // Get solver
-    std::string solverName;
-    group.openAttribute("Solver").read(varstrtype, solverName);
-    shared_ptr<Solver> solver = SolverFactory::createInstance(solverName);
-
     // Get ligand properties
     int nLigands = group.getNumObjs();
     envSettings.ligands.reserve(nLigands);
@@ -61,12 +56,12 @@ void Environment::visualize(double normalizer) {
         for(size_t i = 0; i < rows; i++) {
             for (size_t j = 0; j < 2 && 2*i + j < numLigands; j++) {
                 array ligandDensity = this->getDensity(this->ligands[2*i + j].ligandId);
-                visualizationWin->operator()(i, j).image(ligandDensity/normalizer, this->ligands[2*i + j].name.c_str());
+                visualizationWin->operator()(i, j).image((ligandDensity/normalizer).as(af::dtype::f32), this->ligands[2*i + j].name.c_str());
             }
         }
     }
     else
-        visualizationWin->image(this->densities/normalizer, this->ligands[0].name.c_str());
+        visualizationWin->image((densities/normalizer).as(af::dtype::f32), this->ligands[0].name.c_str());
 
     visualizationWin->show();
 }
@@ -79,6 +74,7 @@ array Environment::getLigandMapping(std::vector<int> ligandIds) {
         mapping(i) = ligandMapping(ligandMapping(span, LIGANDID) == ligandIds[i], LIGANDINTERNAL);
     }
     return mapping;
+
 }
 
 void Environment::init(EnvironmentSettings settings) {
@@ -94,7 +90,7 @@ void Environment::init(EnvironmentSettings settings) {
     for (auto i = 0; i < settings.dimensions.size(); i++) {
         // Invert the order of axis, as providing dimensions in format zyx seems unituitive
         // closest position should be 1.5 * border size to outer border
-        internalDim[settings.dimensions.size() - i - 1] = (dim_t) 2 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
+        internalDim[settings.dimensions.size() - i - 1] = (dim_t) 4 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
     }
 
     // Last dimension is the number of ligands

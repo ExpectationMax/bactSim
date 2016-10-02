@@ -1,0 +1,14 @@
+//
+// Created by Max Horn on 24/09/16.
+//
+
+#ifndef BACTSIM_GPU_SCALABLECOORDINATEINDEXER_H
+#define BACTSIM_GPU_SCALABLECOORDINATEINDEXER_H
+
+
+class ScalableCoordinateIndexer {
+
+};
+
+
+#endif //BACTSIM_GPU_SCALABLECOORDINATEINDEXER_H

@@ -40,7 +40,7 @@ if(NO_GRAPHICS)
     add_definitions(-DNO_GRAPHICS)
 endif()
 
-set(GENERAL General/StorageHelper.h General/StorageHelper.cpp General/Ligand.cpp General/Ligand.h General/ArrayFireHelper.cpp General/ArrayFireHelper.h) # General/StorageManager.h General/StorageManager.cpp )
+set(GENERAL General/Types.h General/CoordinateIndexer.cpp General/CoordinateIndexer.h General/StorageHelper.h General/StorageHelper.cpp General/Ligand.cpp General/Ligand.h General/ArrayFireHelper.cpp General/ArrayFireHelper.h) # General/StorageManager.h General/StorageManager.cpp )
 set(ENVIRONEMENTS Environments/BoundaryCondition.h Environments/BoundaryCondition.cpp Environments/Environment.h Environments/Environment.cpp Environments/Environment2D.h Environments/Environment2D.cpp)
 set(BACTERIA BacterialPopulations/BacterialPopulation.cpp BacterialPopulations/SimplePopulation.cpp BacterialPopulations/Kollmann2005Population.cpp)
 set(SOLVERS Solvers/Solver.cpp Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp)
@@ -98,3 +98,5 @@ IF(${ArrayFire_CUDA_FOUND} AND ${CUDA_FOUND})
     TARGET_LINK_LIBRARIES(simulate-cuda ${LIBHDF5_LIBRARIES} ${ArrayFire_CUDA_LIBRARIES}
             ${CMAKE_THREAD_LIBS_INIT} ${CUDA_LIBRARIES} ${NVVM_LIB})
 ENDIF()
+
+add_subdirectory(Examples)

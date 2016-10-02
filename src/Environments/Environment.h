@@ -65,7 +65,6 @@ protected:
 
     unique_ptr<H5::Group> storage;
 public:
-    GPU_REALTYPE dt;
     BoundaryCondition boundaryCondition;
     double resolution;
     virtual double getStabledt() = 0;

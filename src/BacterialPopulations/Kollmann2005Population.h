@@ -12,33 +12,22 @@ using namespace af;
 
 struct Kollmann2005Parameters : SimplePopulationParameters {
     Kollmann2005Parameters() : SimplePopulationParameters() {};
-    Kollmann2005Parameters(shared_ptr<Solver> odesolver, std::vector<LigandInteraction> interactions, GPU_REALTYPE dt, GPU_REALTYPE swimmSpeed):
+    Kollmann2005Parameters(shared_ptr<Solver> odesolver, std::vector<LigandInteraction> interactions, GPU_REALTYPE swimmSpeed):
             SimplePopulationParameters(interactions, swimmSpeed), odesolver(odesolver) {};
     Kollmann2005Parameters(SimplePopulationParameters paramsBase) {
-        this->interactions = paramsBase.interactions;
-        this->swimmSpeed = paramsBase.swimmSpeed;
+        interactions = paramsBase.interactions;
+        swimmSpeed = paramsBase.swimmSpeed;
     }
 
     shared_ptr<Solver> odesolver;
 
     // Warning, these following parameters are not actually saved
-    unsigned int integrationMultiplyer = 5;
     unsigned int rezeptorMethylationLevels = 5;
 
     // Methylation dependent parameters
-    std::vector<GPU_REALTYPE> T_Km {2.7, 200, 1500, 15000, 60000}; // uM
+    std::vector<GPU_REALTYPE> T_Km {2.7, 20, 150, 1500, 60000}; // uM
     std::vector<GPU_REALTYPE> T_V {0, 0.25, 0.5, 0.75, 1};
     GPU_REALTYPE T_H = 1.2;
-
-    // Rate constants
-    GPU_REALTYPE k_R = 0.39; // 1/s
-    GPU_REALTYPE k_B = 6.3; // 1/s
-    GPU_REALTYPE kp_B = 3; // 1/(uM*s)
-    GPU_REALTYPE k_A = 50; // 1/(uM*s)
-    GPU_REALTYPE k_Y = 100; // 1/(uM*s)
-    GPU_REALTYPE k_Z = 30; // To be divided by [CheZ] 1/s * [CheZ]
-    GPU_REALTYPE g_B = 1; // 1/(uM*s)
-    GPU_REALTYPE g_Y = 0.1; // 1/(uM*s)
 
     // Parameters for simulation of stochasticity
     GPU_REALTYPE beta = 0.0008;
@@ -61,6 +50,16 @@ struct Kollmann2005Parameters : SimplePopulationParameters {
     GPU_REALTYPE Z_t = 3.8; // uM
 
     GPU_REALTYPE pwDivider = (0.2 * 1.53);
+
+    // Rate constants
+    GPU_REALTYPE k_R = 0.39; // 1/s
+    GPU_REALTYPE k_B = 6.3; // 1/s
+    GPU_REALTYPE kp_B = 3; // 1/(uM*s)
+    GPU_REALTYPE k_A = 50; // 1/(uM*s)
+    GPU_REALTYPE k_Y = 100; // 1/(uM*s)
+    GPU_REALTYPE k_Z = 30/Z_t; // To be divided by [CheZ] 1/s * [CheZ]
+    GPU_REALTYPE g_B = 1; // 1/(uM*s)
+    GPU_REALTYPE g_Y = 0.1; // 1/(uM*s)
 };
 
 class Kollmann2005Population : public SimplePopulation {
@@ -166,7 +165,6 @@ private:
         dR(Kollmann2005Population *par): p(par) {}
         array rateofchange(array &input) override;
     };
-
 
     std::vector<std::tuple<unique_ptr<DifferentialEquation>,array&>> equations;
     void updateSwimming(double dt);

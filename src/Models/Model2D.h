@@ -58,6 +58,7 @@ private:
     array processBacteriaParallel(double dt);
     void processOverlappingBacteria(array &overlaping, double dt);
 
+    void processAllBacteriaParallel(double dt);
 };
 
 

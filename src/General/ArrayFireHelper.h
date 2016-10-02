@@ -14,6 +14,7 @@ public:
     static array coordinateIndexing(array &A, array &x, array &y);
     static array lastDimCoordinateIndexing(array &A, array &x, array &y, array &z);
     static array indexZAxis(array &A, array &indexes, array &z);
+    static std::tuple<array, array, array> getOriginalIndexes(array &A, array &indexes);
     static array isUnique(array A);
 };
 

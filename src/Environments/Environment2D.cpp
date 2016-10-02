@@ -11,7 +11,7 @@ array Environment2D::getLaplacian() {
             {0.0, 1.0, 0.0,
              1.0, -4.0, 1.0,
              0.0, 1.0, 0.0};
-    return array(3, 3, data2);
+    return array(3, 3, data2).as(AF_GPUTYPE);
 }
 
 Environment2D::Environment2D(EnvironmentSettings settings) : Environment(settings) {
@@ -32,7 +32,8 @@ Environment2D::Environment2D(H5::Group group) : Environment(group) {
 
 void Environment2D::init() {
     densities = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
-    diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)this->ligands.size());
+    densityIndexer = CoordinateIndexer(densities);
+    diffusion_filters = constant(0.0, LAPLACIAN_SIZE, LAPLACIAN_SIZE, (dim_t)this->ligands.size(), AF_GPUTYPE);
 //    degradationRates = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
 //    productionRates = array(internal_dimensions[0], internal_dimensions[1], internal_dimensions[2], AF_GPUTYPE);
     for(size_t i = 0; i < ligands.size(); i++) {
@@ -76,7 +77,7 @@ void Environment2D::applyNeumannBC(array &input, double resolution, BoundaryCond
     // Y direction
     input(0, span, span) = input(1, span, span) - resolution*bc.yneg;
     input(end, span, span) = input(end-1, span, span) - resolution*bc.ypos;
-    eval(input);
+//    eval(input);
     // X direction
     input(span, 0, span) = input(span, 1, span) - resolution*bc.xneg;
     input(span, end, span) = input(span, end-1, span) - resolution*bc.xpos;
@@ -87,19 +88,18 @@ void Environment2D::applyDericheletBC(array &input, BoundaryCondition &bc) {
     // Y direction
     input(0, span, span) = input(1, span, span)*-1.0 + 2.0*bc.yneg;
     input(end, span, span) = input(end-1, span, span)*-1.0 + 2.0*bc.ypos;
-    input.eval();
+//    input.eval();
     // X direction
     input(span, 0, span) = input(span, 1, span)*-1.0 + 2.0*bc.xneg;
     input(span, end, span) = input(span, end-1, span)*-1.0 + 2.0*bc.xpos;
     input.eval();
 }
 
-
 void Environment2D::applyPeriodicBC(array &input) {
     // Y direction
     input(0, span, span) = input(end-1, span, span);
     input(end, span, span) = input(1, span, span);
-    input.eval();
+//    input.eval();
     // X direction
     input(span, 0, span) = input(span, end-1, span);
     input(span, end, span) = input(span, 1, span);
@@ -117,31 +117,23 @@ array Environment2D::getDensity(int ligandId) {
 void Environment2D::setInterpolatedPositions(array &xpos, array &ypos, array &positions, array &weights) {
     array xindex = xpos/this->resolution + BORDER_SIZE;
     array yindex = ypos/this->resolution + BORDER_SIZE;
-    array pos = array(xpos.elements(), 4);
-//    xindex = moddims(xindex, 1, xindex.dims(0));
-//    yindex = moddims(yindex, 1, yindex.dims(0));
-    //af_print(xindex);
-    //af_print(yindex);
-//    array pos = array(xpos.dims(0), 4, af::dtype::u32);
+
     array left = af::floor(xindex);  // Left
-    array right = af::ceil(xindex);   // Right
+    array right = af::floor(xindex+1);   // Right
     array top = af::floor(yindex);  // Top
-    array bottom = af::ceil(yindex);   // Bottom
-    //af_print(pos(seq(POS_LEFT, POS_BOTTOM), span));
-    
-//    array weights = array(xpos.dims(0), 4, AF_GPUTYPE);
+    array bottom = af::floor(yindex+1);   // Bottom
+
     weights(span, W_TOPLEFT) = (xindex - left) * (yindex - top);
     weights(span, W_TOPRIGHT) = (right - xindex) * (yindex - top);
     weights(span, W_BOTTOMLEFT) = (xindex - left) * (bottom - yindex);
     weights(span, W_BOTTOMRIGHT) = (right - xindex) * (bottom - yindex);
-    
-    positions(span, I_TOPLEFT) = ArrayFireHelper::coordinateIndexing(densities, top, left);
-    positions(span, I_TOPRIGHT) = ArrayFireHelper::coordinateIndexing(densities, top, right);
-    positions(span, I_BOTTOMLEFT) = ArrayFireHelper::coordinateIndexing(densities, bottom, left);
-    positions(span, I_BOTTOMRIGHT) = ArrayFireHelper::coordinateIndexing(densities, bottom, right);
-
-    positions.eval();
     weights.eval();
+
+    positions(span, I_TOPLEFT) = densityIndexer(top, left);
+    positions(span, I_TOPRIGHT) = densityIndexer(top, right);
+    positions(span, I_BOTTOMLEFT) = densityIndexer(bottom, left);
+    positions(span, I_BOTTOMRIGHT) = densityIndexer(bottom, right);
+    positions.eval();
 }
 
 array Environment2D::get_concentrations(array &indexes, array &ligands) {
@@ -185,15 +177,6 @@ void Environment2D::changeLigandConcentrationBy(array concDifferences, array pos
     densities(allbottomleft)  += flat(concDifferences)*tile(weights(span, W_BOTTOMLEFT), nLigands);
     densities(allbottomright)  += flat(concDifferences)*tile(weights(span, W_BOTTOMRIGHT), nLigands);
     eval(densities);
-//    array tiled = concDifferences * reorder(tile(positions(W_TOPLEFT, span), concentrations), 1, 0);
-//    af_print(tiled);
-    // tile is required, to allow element wise calculation between two array datatypes (requires same size)
-    // moddims changes the metadata to convert the result array of the calculation into a z vector (required as operation is in place)
-//    densities(top, left, ligands) += moddims(concDifferences*tile(positions(W_TOPLEFT, span), concentrations), targetdims);
-//    densities(top, right, ligands) += moddims(concDifferences*tile(positions(W_TOPRIGHT, span), concentrations), targetdims);
-//    densities(bottom, left, ligands) += moddims(concDifferences*tile(positions(W_BOTTOMLEFT, span), concentrations), targetdims);
-//    densities(bottom, right, ligands) += moddims(concDifferences*tile(positions(W_BOTTOMRIGHT, span), concentrations), targetdims);
-////    eval(densities, left, right, top, bottom);
 }
 
 void Environment2D::evalDensities() {
@@ -254,20 +237,22 @@ void Environment2D::closeStorage() {
 void Environment2D::simulateTimestep(double dt) {
     applyBoundaryCondition();
     array changes = convolve(densities, diffusion_filters);
-//    + productionRates - degradationRates*densities;
-//    changes = convolve(densities, diffusion_filters);
-//    changes += tile(productionRates, densities.dims(0), densities.dims(1));
-//    changes -= tile(degradationRates, densities.dims(0), densities.dims(1))*densities;
     for (size_t i = 0; i < densities.dims(2); i++) {
         changes(span, span, i) += ligands[i].globalProductionRate - ligands[i].globalDegradationRate*densities(span, span, i);
     }
-    densities(seq(1, end-1), seq(1, end-1), span) += changes(seq(1, end-1), seq(1, end-1), span)*dt;
+
+    densities(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), span) +=
+            changes(seq(BORDER_SIZE, end-BORDER_SIZE), seq(BORDER_SIZE, end-BORDER_SIZE), span)*dt;
+
     eval(densities);
 }
 
 double Environment2D::getStabledt() {
     double largest_D = 0;
-    for(auto ligand: ligands)
+    double largest_kd = 0;
+    for(auto ligand: ligands) {
         largest_D = std::max(largest_D, ligand.diffusionCoefficient);
-    return pow(resolution, 2)/(largest_D * 4);
+        largest_kd = std::max(largest_kd, ligand.globalDegradationRate);
+    }
+    return 0.98/((largest_D * 4)/pow(resolution, 2) + largest_kd);
 }

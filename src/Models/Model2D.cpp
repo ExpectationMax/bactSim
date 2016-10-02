@@ -22,26 +22,35 @@ void Model2D::init() {
     EnvironmentDt = env->getStabledt();
     // find a fraction of the simulation dt that is close to the stable dt of the env;
     std::cout << "Stable dt returned by Environment " << EnvironmentDt << std::endl;
-    EnvironmentDt = Modeldt/ceil(Modeldt/EnvironmentDt);
-    std::cout << "Simulating Environment with dt=" << EnvironmentDt << std::endl;
+//    EnvironmentDt = Modeldt/ceil(Modeldt/EnvironmentDt);
 }
-
+// #define ALL_PARALLEL
 void Model2D::simulateTimestep() {
+//    std::cout << simulationsSinceLastSave << std::endl;
     // Let bacteria interact with environment
+#ifdef ALL_PARALLEL
+    processAllBacteriaParallel(Modeldt);
+#else
     array successful = processBacteriaParallel(Modeldt);
     array overlappingBacteria = where(!successful);
     processOverlappingBacteria(overlappingBacteria, Modeldt);
-
+#endif
     // Simulate bacteria
+    // Get Invalid Kernel when calling clCreateKernel error if this is active...
     for(auto population: bacterialPopulations) {
         population->liveTimestep(Modeldt);
     }
-
-    for(double ddt = 0; ddt < Modeldt; ddt += EnvironmentDt){
+    double ddt;
+    for(ddt = 0; ddt < Modeldt; ddt += EnvironmentDt){
         // Simulate environment
+//        std::cout << ddt << std::endl;
         env->simulateTimestep(EnvironmentDt);
         env->evalDensities();
     }
+
+    // Simulate leftover time
+    env->simulateTimestep(Modeldt - (ddt-EnvironmentDt));
+    env->evalDensities();
     simulationsSinceLastSave++;
 }
 
@@ -64,9 +73,9 @@ void Model2D::visualize() {
     env->visualize(normalizer);
     if(bacterialPopulations.size() > 1) {
         for(size_t i = 0; i < bacterialPopulations.size(); i++)
-            populationsWin->operator()(0, i).scatter(bacterialPopulations[i]->getXpos(), -1*bacterialPopulations[i]->getYpos());
+            populationsWin->operator()(0, i).scatter(bacterialPopulations[i]->getXpos().as(af::dtype::f32), -1*bacterialPopulations[i]->getYpos().as(af::dtype::f32));
     } else {
-        populationsWin->scatter(bacterialPopulations[0]->getXpos(), -1*bacterialPopulations[0]->getYpos());
+        populationsWin->scatter(bacterialPopulations[0]->getXpos().as(af::dtype::f32), -1*bacterialPopulations[0]->getYpos().as(af::dtype::f32));
     }
 
     populationsWin->show();
@@ -133,15 +142,18 @@ Model2D::Model2D(H5::H5File &input) {
 
     this->env = environment;
     this->bacterialPopulations = bacterialPopulations;
-    this->storage->openAttribute("dt").read(H5::PredType::NATIVE_DOUBLE, &Modeldt);
     init();
+
     this->storage = unique_ptr<H5::H5File>(new H5::H5File(input));
-    this->storage->openAttribute("saveStep").read(H5::PredType::NATIVE_INT, &savestep);
+    this->storage->openAttribute("dt").read(H5::PredType::NATIVE_DOUBLE, &Modeldt);
     this->storage->openAttribute("Environment dt").read(H5::PredType::NATIVE_DOUBLE, &EnvironmentDt);
+    this->storage->openAttribute("saveStep").read(H5::PredType::NATIVE_INT, &savestep);
 
 }
 
 GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t, bool *continueSim) {
+    std::cout << "Simulating Environment with dt=" << EnvironmentDt << std::endl;
+    std::cout << "Simulating Model with dt=" << Modeldt << std::endl;
     int iterations = floor(t/Modeldt);
     time_t start = time(NULL);
     int i;
@@ -150,19 +162,27 @@ GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t, bool *continueSim) {
             break;
 
         simulateTimestep();
-        save();
         if(i && !(i%100)) {
+            af::sync();
             double seconds = difftime(time(NULL), start);
             std::cout << 100 / seconds << " iterations per second" << std::endl;
             std::cout << "Simulated " << i * Modeldt << "/" << iterations * Modeldt << std::endl;
             std::cout << "ETA: " << (iterations - i) / (60 * (100 / seconds)) << " min" << std::endl;
             time(&start);
+//            bacterialPopulations[0]->printInternals();
         }
+        save();
 #ifndef NO_GRAPHICS
         visualize();
 #endif
     }
     return (i-1)*Modeldt;
+}
+
+void Model2D::processAllBacteriaParallel(double dt) {
+    for(auto i =0; i<bacterialPopulations.size(); i++){
+        bacterialPopulations[i]->interactWithEnv(seq(bacterialPopulations[i]->getSize()), dt);
+    }
 }
 
 array Model2D::processBacteriaParallel(double dt) {

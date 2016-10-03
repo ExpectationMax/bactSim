@@ -8,7 +8,7 @@
 BacteriaFactory::map_type *BacteriaFactory::map = NULL;
 
 shared_ptr<BacterialPopulation>
-BacteriaFactory::createInstance(std::string const &s, shared_ptr<Environment2D> env, H5::Group group) {
+BacteriaFactory::createInstance(std::string const &s, shared_ptr<Environment> env, H5::Group group) {
     map_type::iterator it = getMap()->find(s);
     if(it == getMap()->end())
         return shared_ptr<BacterialPopulation>();
@@ -23,7 +23,7 @@ BacteriaFactory::map_type * BacteriaFactory::getMap() {
 }
 
 
-shared_ptr<BacterialPopulation> BacterialPopulation::createFromGroup(shared_ptr<Environment2D> env, H5::Group group) {
+shared_ptr<BacterialPopulation> BacterialPopulation::createFromGroup(shared_ptr<Environment> env, H5::Group group) {
     H5::Attribute popType = group.openAttribute("Type");
     std::string type;
     H5::StrType varstrtype(0, H5T_VARIABLE);

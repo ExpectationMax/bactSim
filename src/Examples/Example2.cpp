@@ -8,11 +8,11 @@ using namespace af;
 
 class ExamplePopulation: public SimplePopulation {
 public:
-    ExamplePopulation(std::string name, shared_ptr<Environment2D> Env, SimplePopulationParameters parameters, int nBacteria, int newParameter): SimplePopulation(name, Env, parameters, nBacteria) {
+    ExamplePopulation(std::string name, shared_ptr<Environment> Env, SimplePopulationParameters parameters, int nBacteria, int newParameter): SimplePopulation(name, Env, parameters, nBacteria) {
         theNewParameter = constant(newParameter, size);
     }
 
-    ExamplePopulation(shared_ptr<Environment2D> Env, H5::Group group) : SimplePopulation(Env, group) {
+    ExamplePopulation(shared_ptr<Environment> Env, H5::Group group) : SimplePopulation(Env, group) {
         auto newParameter = group.openDataSet("newParameter");
         theNewParameter = StorageHelper::loadLastDataToGpu<int>(newParameter, H5::PredType::NATIVE_INT, af::dtype::s32);
     }

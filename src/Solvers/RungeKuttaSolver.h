@@ -6,7 +6,7 @@
 #define CHEMOHYBRID_GPU_RUNGEKUTTASOLVER_H
 
 #include "Solver.h"
-#include "Environments/Environment.h"
+#include "Environments/EnvironmentBase.h"
 
 class RungeKuttaSolver : public Solver{
 public:

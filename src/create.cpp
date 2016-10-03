@@ -1,7 +1,7 @@
 #include <csignal>
 #include <random>
 #include <arrayfire.h>
-#include "Environments/Environment2D.h"
+#include "Environments/Environment.h"
 #include "BacterialPopulations/Kollmann2005Population.h"
 #include "Models/Model2D.h"
 #include "Solvers/ForwardEulerSolver.h"
@@ -50,7 +50,7 @@ int main(int argc, char** argv)
 //    Ligand ligand2 = {"Attractor", 1,  5, 0.0, 0.5, 500.0};
 //    ESettings.ligands.push_back(ligand2);
 
-    shared_ptr<Environment2D> simEnv(new Environment2D(ESettings));
+    shared_ptr<Environment> simEnv(new Environment(ESettings));
 
     GPU_REALTYPE bactdt = 0.01;
 

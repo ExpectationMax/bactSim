@@ -8,7 +8,7 @@
 #include <General/StorageHelper.h>
 #include <General/ArrayFireHelper.h>
 
-Model2D::Model2D(shared_ptr<Environment2D> environment, std::vector<shared_ptr<BacterialPopulation>> populations, double dt):
+Model2D::Model2D(shared_ptr<Environment> environment, std::vector<shared_ptr<BacterialPopulation>> populations, double dt):
         env(environment), bacterialPopulations(populations), Modeldt(dt) {
     init();
 }
@@ -130,7 +130,7 @@ void Model2D::save() {
 }
 
 Model2D::Model2D(H5::H5File &input) {
-    shared_ptr<Environment2D> environment(new Environment2D(input.openGroup("Environment")));
+    shared_ptr<Environment> environment(new Environment(input.openGroup("Environment")));
     H5::Group populations = input.openGroup("Populations");
     int nPopulations = populations.getNumObjs();
     bacterialPopulations.reserve(nPopulations);

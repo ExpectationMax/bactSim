@@ -5,7 +5,7 @@
 #include "SimplePopulation.h"
 #include "General/StorageHelper.h"
 
-SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment2D> env, SimplePopulationParameters params) : BacterialPopulation(params), env(env), params(params) {
+SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment> env, SimplePopulationParameters params) : BacterialPopulation(params), env(env), params(params) {
     this->name = name;
     init();
 }
@@ -196,7 +196,7 @@ void SimplePopulation::setPositions(array x, array y) {
     updateInterpolatedPositions();
 }
 
-SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment2D> Env, SimplePopulationParameters parameters,
+SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment> Env, SimplePopulationParameters parameters,
                                      int nBacteria) : SimplePopulation(name, Env, parameters) {
     size = nBacteria;
     initializeArrays();
@@ -212,7 +212,7 @@ SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment2D> E
     senseLigandConcentration();
 }
 
-SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment2D> Env, SimplePopulationParameters parameters,
+SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment> Env, SimplePopulationParameters parameters,
                                      int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy) :
         SimplePopulation(name, Env, parameters) {
     size = nBacteria;
@@ -226,7 +226,7 @@ SimplePopulation::SimplePopulation(std::string name, shared_ptr<Environment2D> E
     senseLigandConcentration();
 }
 
-SimplePopulation::SimplePopulation(shared_ptr<Environment2D> Env, H5::Group group) : BacterialPopulation(group) {
+SimplePopulation::SimplePopulation(shared_ptr<Environment> Env, H5::Group group) : BacterialPopulation(group) {
     // Name and storage initialized by base class
     SimplePopulationParameters parameters;
 

@@ -105,7 +105,7 @@ void Kollmann2005Population::closeStorage() {
     SimplePopulation::closeStorage();
 }
 
-Kollmann2005Population::Kollmann2005Population(shared_ptr<Environment2D> Env, H5::Group group) : SimplePopulation(Env,
+Kollmann2005Population::Kollmann2005Population(shared_ptr<Environment> Env, H5::Group group) : SimplePopulation(Env,
                                                                                                                   group) {
     this->params = Kollmann2005Parameters(SimplePopulation::params);
     init();
@@ -151,7 +151,7 @@ Kollmann2005Population::Kollmann2005Population(shared_ptr<Environment2D> Env, H5
     }
 }
 
-Kollmann2005Population::Kollmann2005Population(std::string name, shared_ptr<Environment2D> Env,
+Kollmann2005Population::Kollmann2005Population(std::string name, shared_ptr<Environment> Env,
                                                Kollmann2005Parameters parameters, int nBacteria) : SimplePopulation(
         name, Env, parameters, nBacteria), params(parameters) {
     this->odesolver = params.odesolver;

@@ -18,9 +18,9 @@ struct SimplePopulationParameters : BacterialParameters {
 
 class SimplePopulation : public BacterialPopulation {
 public:
-    SimplePopulation(std::string name, shared_ptr<Environment2D> Env, SimplePopulationParameters parameters, int nBacteria);
-    SimplePopulation(std::string name, shared_ptr<Environment2D> Env, SimplePopulationParameters parameters, int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy);
-    SimplePopulation(shared_ptr<Environment2D> Env, H5::Group group);
+    SimplePopulation(std::string name, shared_ptr<Environment> Env, SimplePopulationParameters parameters, int nBacteria);
+    SimplePopulation(std::string name, shared_ptr<Environment> Env, SimplePopulationParameters parameters, int nBacteria, GPU_REALTYPE *initialx, GPU_REALTYPE *initialy);
+    SimplePopulation(shared_ptr<Environment> Env, H5::Group group);
 
     virtual void printInternals() override;
 
@@ -45,7 +45,7 @@ public:
 
 protected:
     // Initialization
-    SimplePopulation(std::string name, shared_ptr<Environment2D> env, SimplePopulationParameters params);
+    SimplePopulation(std::string name, shared_ptr<Environment> env, SimplePopulationParameters params);
     void randomizeAngle();
     void setPositions(array x, array y);
     void init();
@@ -59,7 +59,7 @@ protected:
     void updateInterpolatedPositions();
     std::function<void(void)> validatePositions;
 
-    shared_ptr<Environment2D> env;
+    shared_ptr<Environment> env;
     array xpos;
     array ypos;
     array angle;

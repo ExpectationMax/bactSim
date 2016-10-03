@@ -5,7 +5,7 @@
 #ifndef BACTSIM_GPU_KOLLMANN2005POPULATION_H
 #define BACTSIM_GPU_KOLLMANN2005POPULATION_H
 
-#include "Environments/Environment2D.h"
+#include "Environments/Environment.h"
 #include "SimplePopulation.h"
 
 using namespace af;
@@ -64,12 +64,12 @@ struct Kollmann2005Parameters : SimplePopulationParameters {
 
 class Kollmann2005Population : public SimplePopulation {
 public:
-    Kollmann2005Population(std::string name, shared_ptr<Environment2D> Env, Kollmann2005Parameters parameters, int nBacteria);
-    Kollmann2005Population(std::string name, shared_ptr<Environment2D> env, Kollmann2005Parameters params) : SimplePopulation(name, env, params), params(params) {
+    Kollmann2005Population(std::string name, shared_ptr<Environment> Env, Kollmann2005Parameters parameters, int nBacteria);
+    Kollmann2005Population(std::string name, shared_ptr<Environment> env, Kollmann2005Parameters params) : SimplePopulation(name, env, params), params(params) {
         init();
     }
 
-    Kollmann2005Population(shared_ptr<Environment2D> Env, H5::Group group);
+    Kollmann2005Population(shared_ptr<Environment> Env, H5::Group group);
 
     // Simulation
     void liveTimestep(double dt) override;

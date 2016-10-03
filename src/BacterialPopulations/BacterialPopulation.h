@@ -6,8 +6,8 @@
 #define BACSIM_GPU_BACTERIALPOPULATION_H
 
 #include <arrayfire.h>
-#include "Environments/Environment.h"
-#include <Environments/Environment2D.h>
+#include "Environments/EnvironmentBase.h"
+#include <Environments/Environment.h>
 #include "General/Ligand.h"
 #include <map>
 
@@ -29,7 +29,7 @@ struct BacterialParameters {
 
 class BacterialPopulation {
 public:
-    static shared_ptr<BacterialPopulation> createFromGroup(shared_ptr<Environment2D> env, H5::Group group);
+    static shared_ptr<BacterialPopulation> createFromGroup(shared_ptr<Environment> env, H5::Group group);
     std::string name;
     virtual void interactWithEnv(int individual, double dt) = 0;
     virtual void interactWithEnv(array individuals, double dt) = 0;
@@ -58,16 +58,16 @@ protected:
 };
 
 // This allows bacterial populations to be registered and later initialized based on a type string and a H5Group
-template<typename T> shared_ptr<BacterialPopulation> createT(shared_ptr<Environment2D> env, H5::Group group) {
+template<typename T> shared_ptr<BacterialPopulation> createT(shared_ptr<Environment> env, H5::Group group) {
     return shared_ptr<BacterialPopulation>(
             static_cast<BacterialPopulation *>(new T(env, group)));
 }
 
 class BacteriaFactory {
-    typedef std::map<std::string, shared_ptr<BacterialPopulation>(*)(shared_ptr<Environment2D> env, H5::Group group)> map_type;
+    typedef std::map<std::string, shared_ptr<BacterialPopulation>(*)(shared_ptr<Environment> env, H5::Group group)> map_type;
 public:
     static shared_ptr<BacterialPopulation>
-    createInstance(std::string const &s, shared_ptr<Environment2D> env, H5::Group group);
+    createInstance(std::string const &s, shared_ptr<Environment> env, H5::Group group);
 protected:
     static map_type * getMap();
     static map_type * map;

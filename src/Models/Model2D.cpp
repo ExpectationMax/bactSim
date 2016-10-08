@@ -24,7 +24,7 @@ void Model2D::init() {
     std::cout << "Stable dt returned by Environment " << EnvironmentDt << std::endl;
 //    EnvironmentDt = Modeldt/ceil(Modeldt/EnvironmentDt);
 }
-// #define ALL_PARALLEL
+#define ALL_PARALLEL
 void Model2D::simulateTimestep() {
 //    std::cout << simulationsSinceLastSave << std::endl;
     // Let bacteria interact with environment
@@ -45,12 +45,10 @@ void Model2D::simulateTimestep() {
         // Simulate environment
 //        std::cout << ddt << std::endl;
         env->simulateTimestep(EnvironmentDt);
-        env->evalDensities();
     }
 
     // Simulate leftover time
     env->simulateTimestep(Modeldt - (ddt-EnvironmentDt));
-    env->evalDensities();
     simulationsSinceLastSave++;
 }
 

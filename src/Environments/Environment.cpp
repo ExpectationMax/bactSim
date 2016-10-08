@@ -179,10 +179,6 @@ void Environment::changeLigandConcentrationBy(array concDifferences, array posit
     eval(densities);
 }
 
-void Environment::evalDensities() {
-    eval(densities);
-}
-
 void Environment::setupStorage(unique_ptr<H5::Group> storage)  {
     // Let parent init name, dt and boundary condition
     EnvironmentBase::setupStorage(std::move(storage));
@@ -193,8 +189,8 @@ void Environment::setupStorage(unique_ptr<H5::Group> storage)  {
 
     // Setup dimensions of datasets
     std::vector<hsize_t> dims;
-    for(auto dim: this->internal_dimensions) {
-        dims.push_back(static_cast<hsize_t>(dim)-2*BORDER_SIZE);
+    for(auto i = 0; i < internal_dimensions.ndims(); i++) {
+        dims.push_back(static_cast<hsize_t>(internal_dimensions.dims[i])-2*BORDER_SIZE);
     }
 
     hsize_t initial_dims[3] = {0, dims[0], dims[1] };

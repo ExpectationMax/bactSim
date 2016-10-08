@@ -81,7 +81,7 @@ void SimplePopulation::applyPeriodicBoundary(double maxx, double maxy, array &xp
     // x axis
     xpos += (xpos > maxx) * -xpos + (xpos < 0) * (-xpos + maxx);
     // y axis
-    ypos = ypos - (ypos > maxy) * ypos + (ypos < 0) * (-ypos + maxy);
+    ypos += (ypos > maxy) * -ypos + (ypos < 0) * (-ypos + maxy);
 
     eval(xpos, ypos);
 }

@@ -49,11 +49,9 @@ public:
 
     void setInterpolatedPositions(array &xpos, array &ypos, array &pos, array &weights);
 
-    void changeLigandConcentrationBy(array concDifferences, array positions, array weights, array ligands);
+    virtual void changeLigandConcentrationBy(array concDifferences, array positions, array weights, array ligands);
 
-    array getLigandConcentrations(array positions, array weights, array ligands);
-
-    void evalDensities();
+    virtual array getLigandConcentrations(array positions, array weights, array ligands);
 
     virtual void simulateTimestep(double dt) override;
 

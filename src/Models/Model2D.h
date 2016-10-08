@@ -16,7 +16,7 @@ struct bacteriumRef {
 
 class Model2D {
 #ifndef NO_GRAPHICS
-    Window *populationsWin;
+    Window *populationsWin = NULL;
 #endif
     int totalBacteria = 0;
     unique_ptr<H5::H5File> storage;

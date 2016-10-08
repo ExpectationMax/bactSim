@@ -90,13 +90,13 @@ void EnvironmentBase::init(EnvironmentSettings settings) {
     for (auto i = 0; i < settings.dimensions.size(); i++) {
         // Invert the order of axis, as providing dimensions in format zyx seems unituitive
         // closest position should be 1.5 * border size to outer border
-        internalDim[settings.dimensions.size() - i - 1] = (dim_t) 4 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
+        internalDim[settings.dimensions.size() - i - 1] = (dim_t) 2 * BORDER_SIZE + ceil(settings.dimensions[i]/settings.resolution);
     }
 
     // Last dimension is the number of ligands
     internalDim[internalDim.size() - 1] = settings.ligands.size();
 
-    this->internal_dimensions = internalDim;
+    this->internal_dimensions = af::dim4(internalDim.size(), internalDim.data());
 
     // Store mapping of ligands on gpu
     this->ligandMapping = constant(0, ligands.size(), 2, u16);

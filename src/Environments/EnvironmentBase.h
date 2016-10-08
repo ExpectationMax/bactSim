@@ -7,7 +7,7 @@
 
 #include "General/Types.h"
 #define BORDER_SIZE 1
-#define LAPLACIAN_SIZE 1 + 2 * BORDER_SIZE
+#define LAPLACIAN_SIZE 3
 
 #define LIGANDID 0
 #define LIGANDINTERNAL 1
@@ -52,7 +52,7 @@ protected:
     std::map<unsigned int, unsigned int> hostLigandMapping;
 
     // Simultation Parameters
-    std::vector<dim_t> internal_dimensions;
+    dim4 internal_dimensions;
 #ifndef NO_GRAPHICS
     Window *visualizationWin;
     unsigned int numLigands;

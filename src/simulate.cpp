@@ -5,7 +5,7 @@
 #include <csignal>
 #include <H5Cpp.h>
 #include "Models/Model2D.h"
-#define NO_GRAPHICS
+//#define NO_GRAPHICS
 
 namespace
 {

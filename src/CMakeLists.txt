@@ -41,7 +41,12 @@ if(NO_GRAPHICS)
 endif()
 
 set(GENERAL General/Types.h General/CoordinateIndexer.cpp General/CoordinateIndexer.h General/StorageHelper.h General/StorageHelper.cpp General/Ligand.cpp General/Ligand.h General/ArrayFireHelper.cpp General/ArrayFireHelper.h) # General/StorageManager.h General/StorageManager.cpp )
-set(ENVIRONEMENTS Environments/BoundaryCondition.h Environments/BoundaryCondition.cpp Environments/EnvironmentBase.h Environments/EnvironmentBase.cpp Environments/Environment.h Environments/Environment.cpp)
+set(ENVIRONEMENTS
+        Environments/BoundaryCondition.h Environments/BoundaryCondition.cpp
+        Environments/EnvironmentBase.h Environments/EnvironmentBase.cpp
+        Environments/Environment.h Environments/Environment.cpp
+        Environments/ConstantEnvironment.h
+        )
 set(BACTERIA BacterialPopulations/BacterialPopulation.cpp BacterialPopulations/SimplePopulation.cpp BacterialPopulations/Kollmann2005Population.cpp)
 set(SOLVERS Solvers/Solver.cpp Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp)
 set(MODELS Models/Model2D.h Models/Model2D.cpp )

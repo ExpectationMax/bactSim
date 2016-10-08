@@ -153,14 +153,15 @@ GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t, bool *continueSim) {
     std::cout << "Simulating Environment with dt=" << EnvironmentDt << std::endl;
     std::cout << "Simulating Model with dt=" << Modeldt << std::endl;
     int iterations = floor(t/Modeldt);
+    time_t gtime = time(NULL);
     time_t start = time(NULL);
     int i;
     for(i = 0; i < iterations; i++) {
-        if(continueSim && !(*continueSim))
+        if (continueSim && !(*continueSim))
             break;
 
         simulateTimestep();
-        if(i && !(i%100)) {
+        if (i && !(i % 100)) {
             af::sync();
             double seconds = difftime(time(NULL), start);
             std::cout << 100 / seconds << " iterations per second" << std::endl;
@@ -174,6 +175,8 @@ GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t, bool *continueSim) {
         visualize();
 #endif
     }
+    double seconds_since_start = difftime(time(NULL), gtime);
+    std::cout << "Average speed: " << (i-1)*Modeldt/seconds_since_start << " modeltime/s" << std::endl;
     return (i-1)*Modeldt;
 }
 

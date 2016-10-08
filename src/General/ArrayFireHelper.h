@@ -5,6 +5,7 @@
 #ifndef BACTSIM_GPU_ARRAYFIREHELPER_H
 #define BACTSIM_GPU_ARRAYFIREHELPER_H
 
+#include <tuple>
 #include <arrayfire.h>
 using namespace af;
 

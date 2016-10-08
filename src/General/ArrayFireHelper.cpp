@@ -49,7 +49,6 @@ std::tuple<array, array, array> ArrayFireHelper::getOriginalIndexes(array &A, ar
     zremain = mod(indexes, (dim[0]*dim[1]));
     y = af::floor(zremain/dim[0]);
     x = mod(zremain, dim[0]);
-    std::tuple<array, array, array> result(x, y, z);
-    return result;
+    return std::make_tuple(x, y, z);
 }
 

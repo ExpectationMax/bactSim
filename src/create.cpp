@@ -44,29 +44,31 @@ int main(int argc, char** argv)
     boundaryCondition.ypos = 0;
     ESettings.boundaryCondition = boundaryCondition;
 
-    int maxi = int(ceil(ESettings.dimensions[0]/ESettings.resolution));
-    int maxj = int(ceil(ESettings.dimensions[1]/ESettings.resolution));
-    std::cout << maxj << ' ' << maxj << std::endl;
+//    int maxi = int(ceil(ESettings.dimensions[0]/ESettings.resolution));
+//    int maxj = int(ceil(ESettings.dimensions[1]/ESettings.resolution));
+//    std::cout << maxj << ' ' << maxj << std::endl;
     // Initialize with gaussian
-    GPU_REALTYPE initialValues[maxi*maxj];
-    for(int i = 0; i < maxi; i++) {
-        for(int j = 0; j < maxj; j++) {
-            initialValues[i*maxi+j] = 0;
-//            initialValues[i*maxi+j] = 100 * exp(-( (pow(i - maxi/2.0, 2)/(2*400/ESettings.resolution)) + (pow(j - maxj/2.0, 2)/(2*400/ESettings.resolution)) ));
-        }
-    }
+//    GPU_REALTYPE initialValues[maxi*maxj];
+//    for(int i = 0; i < maxi; i++) {
+//        for(int j = 0; j < maxj; j++) {
+//            initialValues[i*maxi+j] = 0;
+////            initialValues[i*maxi+j] = 100 * exp(-( (pow(i - maxi/2.0, 2)/(2*400/ESettings.resolution)) + (pow(j - maxj/2.0, 2)/(2*400/ESettings.resolution)) ));
+//        }
+//    }
 
-    std::map<unsigned int, GPU_REALTYPE *> initLigands = {{0, initialValues}};
+//    std::map<unsigned int, GPU_REALTYPE *> initLigands = {{0, initialValues}};
 
 
     // Setup Ligands
-    Ligand ligand1 = {"Food", 0, 0, 0.0, 0.0, 500.0};
+    Ligand ligand1 = {"Food", 0, 100, 0.0, 0.0, 500.0};
     ESettings.ligands.push_back(ligand1);
 //    Ligand ligand2 = {"Attractor", 1,  5, 0.0, 0.5, 500.0};
 //    ESettings.ligands.push_back(ligand2);
 
-    shared_ptr<Environment> simEnv(new ConstantEnvironment(initLigands, ESettings));
-    af_print(sum(sum(simEnv->getAllDensities(), -1),-1));
+
+//    shared_ptr<Environment> simEnv(new ConstantEnvironment(initLigands, ESettings));
+    shared_ptr<Environment> simEnv(new Environment(ESettings));
+
     GPU_REALTYPE bactdt = 0.02;
 
     // Update randomness
@@ -84,7 +86,7 @@ int main(int argc, char** argv)
 //    ligandInteractions1.push_back(interaction12);
 
     Kollmann2005Parameters bactParams = {BactSolver, ligandInteractions1, 20};
-    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Kollmann2005Population("Population 1", simEnv, bactParams, 3))));
+    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Kollmann2005Population("Population 1", simEnv, bactParams, 60000))));
 
 //    std::vector<LigandInteraction> ligandInteractions2;
 //    LigandInteraction interaction21 = {1,0.8, 0, 0, 0};
@@ -95,7 +97,7 @@ int main(int argc, char** argv)
 
     // Setup model
     Model2D mymodel(simEnv, populations, bactdt);
-    mymodel.setupStorage("test.h5", 5);
+    mymodel.setupStorage("test.h5", 50);
     mymodel.save();
 
 #ifndef NO_GRAPHICS

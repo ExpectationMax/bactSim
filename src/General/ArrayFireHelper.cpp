@@ -56,7 +56,8 @@ array ArrayFireHelper::gammaSampler(unsigned int n, int shape, double scale, dou
     array x = constant(1.0, n, AF_GPUTYPE);
     for(auto i = 0; i < shape; i++)
         x *= randu(n, AF_GPUTYPE);
-    x = -log(x);
-    return scale*x + location;
+    x = scale*-log(x); + location;
+    eval(x);
+    return x;
 }
 

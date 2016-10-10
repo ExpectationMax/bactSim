@@ -49,7 +49,7 @@ int main(int argc, char** argv)
     double size = 2000;
     std::cout << maxj << ' ' << maxj << std::endl;
 //     Initialize with gaussian
-    GPU_REALTYPE initialValues[maxi*maxj];
+    GPU_REALTYPE *initialValues = new GPU_REALTYPE[maxi*maxj];
     for(int i = 0; i < maxi; i++) {
         for(int j = 0; j < maxj; j++) {
 //            initialValues[i*maxi+j] = 0;
@@ -76,7 +76,7 @@ int main(int argc, char** argv)
 
 //    shared_ptr<Environment> simEnv(new ConstantEnvironment(initLigands, ESettings));
     shared_ptr<Environment> simEnv(new ConstantEnvironment(initLigands, ESettings));
-
+    delete[] initialValues;
     GPU_REALTYPE bactdt = 0.01;
 
     // Update randomness

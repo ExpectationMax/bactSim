@@ -26,6 +26,7 @@ public:
     unsigned int ligandId;
     double productionRate;
     double uptakeRate;
+    double Ku;
     double Kon;
     double Koff;
     static H5::CompType getH5SaveType();

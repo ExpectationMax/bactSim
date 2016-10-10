@@ -2,13 +2,13 @@
 // Created by Max Horn on 05/09/16.
 //
 
-#include "Kollmann2005Population.h"
+#include "Matthaeus2009Population.h"
 #include "General/StorageHelper.h"
 #include <sstream>
 /**
  * Extract parameters from parameter struct and store as GPU arrays for faster access
  */
-void Kollmann2005Population::init() {
+void Matthaeus2009Population::init() {
     this->Koff = array((dim_t)params.interactions.size());
     this->Kon = array((dim_t)params.interactions.size());
     this->swimming = constant(0, size, af::dtype::b8);
@@ -25,25 +25,20 @@ void Kollmann2005Population::init() {
 
     for(int i = 0; i<5; i++) {
         // Methylation levels of rez are 0
-        if(i == 0)
-            Tm.push_back(constant(params.A_t,size, AF_GPUTYPE));
-        else
-            Tm.push_back(constant(0,size, AF_GPUTYPE));
-
-        equations.push_back(std::make_tuple(unique_ptr<DifferentialEquation>(new dTm(this, i)), std::ref(Tm[i])));
-
+        Tm.push_back(constant(params.T[i], size, AF_GPUTYPE));
         Tma.push_back(constant(0, size, AF_GPUTYPE));
+        equations.push_back(std::make_tuple(unique_ptr<DifferentialEquation>(new dTm(this, i)), std::ref(Tm[i])));
     }
-    Ap = constant(0, size, AF_GPUTYPE);
+    Ap = constant(params.Ap, size, AF_GPUTYPE);
     equations.push_back(std::make_tuple(unique_ptr<DifferentialEquation>(new dAp(this)), std::ref(Ap)));
-    Bp = constant(0, size, AF_GPUTYPE);
+    Bp = constant(params.Bp, size, AF_GPUTYPE);
     equations.push_back(std::make_tuple(unique_ptr<DifferentialEquation>(new dBp(this)), std::ref(Bp)));
-    Yp = constant(0, size, AF_GPUTYPE);
+    Yp = constant(params.Yp, size, AF_GPUTYPE);
     equations.push_back(std::make_tuple(unique_ptr<DifferentialEquation>(new dYp(this)), std::ref(Yp)));
     tau = constant(0, size, AF_GPUTYPE);
 }
 
-void Kollmann2005Population::setupStorage(H5::Group mystorage) {
+void Matthaeus2009Population::setupStorage(H5::Group mystorage) {
     SimplePopulation::setupStorage(mystorage);
     // Store type of ode solver
     storage->createAttribute("Solver", StorageHelper::H5VariableString, StorageHelper::H5Scalar)
@@ -74,7 +69,7 @@ void Kollmann2005Population::setupStorage(H5::Group mystorage) {
     }
 }
 
-bool Kollmann2005Population::save() {
+bool Matthaeus2009Population::save() {
     if(SimplePopulation::save()) {
         StorageHelper::appendDataToDataSet<char>(swimming, *swimmingStorage, H5::PredType::NATIVE_CHAR);
         StorageHelper::appendDataToDataSet<GPU_REALTYPE>(Ap, *ApStorage, HDF5_GPUTYPE);
@@ -93,7 +88,7 @@ bool Kollmann2005Population::save() {
         return false;
 }
 
-void Kollmann2005Population::closeStorage() {
+void Matthaeus2009Population::closeStorage() {
     swimmingStorage.reset();
     ApStorage.reset();
     BpStorage.reset();
@@ -105,9 +100,9 @@ void Kollmann2005Population::closeStorage() {
     SimplePopulation::closeStorage();
 }
 
-Kollmann2005Population::Kollmann2005Population(shared_ptr<Environment> Env, H5::Group group) : SimplePopulation(Env,
+Matthaeus2009Population::Matthaeus2009Population(shared_ptr<Environment> Env, H5::Group group) : SimplePopulation(Env,
                                                                                                                   group) {
-    this->params = Kollmann2005Parameters(SimplePopulation::params);
+    this->params = Matthaeus2009Parameters(SimplePopulation::params);
     init();
     std::string solverName;
     group.openAttribute("Solver").read(StorageHelper::H5VariableString, solverName);
@@ -151,22 +146,23 @@ Kollmann2005Population::Kollmann2005Population(shared_ptr<Environment> Env, H5::
     }
 }
 
-Kollmann2005Population::Kollmann2005Population(std::string name, shared_ptr<Environment> Env,
-                                               Kollmann2005Parameters parameters, int nBacteria) : SimplePopulation(
+Matthaeus2009Population::Matthaeus2009Population(std::string name, shared_ptr<Environment> Env,
+                                               Matthaeus2009Parameters parameters, int nBacteria) : SimplePopulation(
         name, Env, parameters, nBacteria), params(parameters) {
     this->odesolver = params.odesolver;
     init();
+    printInternals();
 };
 
 REGISTER_DEF_TYPE(Kollmann2005Population)
 
-void Kollmann2005Population::liveTimestep(double dt) {
+void Matthaeus2009Population::liveTimestep(double dt) {
     // Simulation
     senseLigandConcentration();
     updateTotalConc();
     calculateDividers();
     integrateEquations(dt);
-
+//    af_print(Yp);
     // Movement
     updateSwimming(dt);
     move(dt);
@@ -176,12 +172,13 @@ void Kollmann2005Population::liveTimestep(double dt) {
         setBorderBacteriaTumbling();
 }
 
-void Kollmann2005Population::updateSwimming(double dt) {
+void Matthaeus2009Population::updateSwimming(double dt) {
     // Get new swimming candidates
     array subset = randu(size, AF_GPUTYPE) < (dt/params.pwDivider);
     tau = pow(Yp, params.H_c)/(pow(Yp, params.H_c) + pow(params.K_C, params.H_c));
-    array newswimming = !(randu(size, AF_GPUTYPE) < tau);
+//    tau = exp(params.H_c * log(Yp)) / ( exp(params.H_c * log(Yp)) + exp(params.H_c * log(params.K_C)) );
 
+    array newswimming = !(randu(size, AF_GPUTYPE) < tau);
     // Change angle of swimming bacteria
     angle = !subset*angle + subset*(swimming*angle + !swimming*randu(size, AF_GPUTYPE)*2*Pi);
 
@@ -191,13 +188,13 @@ void Kollmann2005Population::updateSwimming(double dt) {
     eval(swimming);
 }
 
-void Kollmann2005Population::move(double dt) {
+void Matthaeus2009Population::move(double dt) {
     xpos += swimming*cos(angle)*params.swimmSpeed*dt;
     ypos += swimming*sin(angle)*params.swimmSpeed*dt;
     eval(xpos,ypos);
 }
 
-void Kollmann2005Population::updateTotalConc() {
+void Matthaeus2009Population::updateTotalConc() {
     array T_tot = constant(0, size);
     array T_a = constant(0, size);
     for(int i = 0; i < 5; i++) {
@@ -210,7 +207,7 @@ void Kollmann2005Population::updateTotalConc() {
     eval(Tt, T_a);
 }
 
-void Kollmann2005Population::integrateEquations(double dt) {
+void Matthaeus2009Population::integrateEquations(double dt) {
     for(int i = 0; i < params.integrationMultiplyer; i++) {
         for(auto j = 0; j < equations.size(); j++) {
             odesolver->solveStep(*std::get<0>(equations[j]), std::get<1>(equations[j]),
@@ -219,13 +216,13 @@ void Kollmann2005Population::integrateEquations(double dt) {
     }
 }
 
-void Kollmann2005Population::calculateDividers() {
+void Matthaeus2009Population::calculateDividers() {
     Ttdivider = 1/(params.K_R + Tt);
     Tadivider = 1/(params.K_B + Ta);
     eval(Ttdivider, Tadivider);
 }
 
-void Kollmann2005Population::printInternals() {
+void Matthaeus2009Population::printInternals() {
     SimplePopulation::printInternals();
     af_print(sensedConcentration);
     for(int i = 0; i < 5; i++){
@@ -239,11 +236,11 @@ void Kollmann2005Population::printInternals() {
     af_print(Yp);
 }
 
-void Kollmann2005Population::setBorderBacteriaTumbling() {
+void Matthaeus2009Population::setBorderBacteriaTumbling() {
     swimming = swimming && !atborder;
 }
 
-array Kollmann2005Population::dTm::rateofchange(array &input) {
+array Matthaeus2009Population::dTm::rateofchange(array &input) {
     array output =  - p->params.k_R*p->params.R_t*input*p->Ttdivider
                     - p->params.k_B*p->Bp * p->Tma[methylationLevel]*p->Tadivider;
     if(methylationLevel>0)
@@ -255,23 +252,23 @@ array Kollmann2005Population::dTm::rateofchange(array &input) {
 
 }
 
-array Kollmann2005Population::dAp::rateofchange(array &input) {
+array Matthaeus2009Population::dAp::rateofchange(array &input) {
     array output = + p->params.k_A*(p->params.A_t - input)*p->Ta
                    - p->params.k_Y*input*(p->params.Y_t - p->Yp)
                    - p->params.kp_B*input*(p->params.B_t - p->Bp);
     return output;
 }
 
-array Kollmann2005Population::dYp::rateofchange(array &input) {
-    array output = + p->params.k_Y*p->Ap*(p->params.Y_t - input) - input* (p->params.k_Z*p->params.Z_t - p->params.g_Y);
+array Matthaeus2009Population::dYp::rateofchange(array &input) {
+    array output = + p->params.k_Y*p->Ap*(p->params.Y_t - input) - input* (p->params.k_Z*p->params.Z_t + p->params.g_Y);
     return output;
 }
 
-array Kollmann2005Population::dBp::rateofchange(array &input) {
+array Matthaeus2009Population::dBp::rateofchange(array &input) {
     array output = + p->params.kp_B*p->Ap*(p->params.B_t - input) - p->params.g_B*input;
     return output;
 }
 
-array Kollmann2005Population::dR::rateofchange(array &input) {
+array Matthaeus2009Population::dR::rateofchange(array &input) {
     return array();
 }

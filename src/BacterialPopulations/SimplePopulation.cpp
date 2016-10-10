@@ -15,10 +15,12 @@ void SimplePopulation::init() {
 
     this->uptakeRates  = array(1, (dim_t)params.interactions.size());
     this->productionRates = array(1, (dim_t)params.interactions.size());
+    this->Kus = array(1, (dim_t)params.interactions.size());
 
     for(size_t i = 0; i < params.interactions.size(); i++) {
         ligandIds.push_back(params.interactions[i].ligandId);
         uptakeRates(0, i) = params.interactions[i].uptakeRate;
+        Kus(0, i) = params.interactions[i].Ku;
         productionRates(0, i) = params.interactions[i].productionRate;
     }
 
@@ -287,7 +289,7 @@ void SimplePopulation::senseLigandConcentration() {
 }
 
 array SimplePopulation::modelUptakeProductionRate(array ligconc) {
-    return (-ligconc*tile(uptakeRates, ligconc.dims(0)) + tile(productionRates, ligconc.dims(0)));
+    return (-tile(uptakeRates, ligconc.dims(0))*ligconc/(ligconc + tile(Kus, ligconc.dims(0))) + tile(productionRates, ligconc.dims(0)));
 }
 
 array SimplePopulation::getInterpolatedPositions() {

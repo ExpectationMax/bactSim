@@ -80,6 +80,7 @@ protected:
 
     SimplePopulationParameters params;
     array uptakeRates;
+    array Kus;
     array productionRates;
     array ligandmapping;
 

@@ -4,7 +4,7 @@
 
 #include <csignal>
 #include "Environments/Environment.h"
-#include "BacterialPopulations/Kollmann2005Population.h"
+#include "BacterialPopulations/Matthaeus2009Population.h"
 #include "Solvers/RungeKuttaSolver.h"
 #include "Solvers/ForwardEulerSolver.h"
 #include "Models/Model2D.h"
@@ -77,13 +77,13 @@ int main(int argc, char *argv[]) {
     shared_ptr<Solver> BactSolver(static_cast<Solver *>(new RungeKuttaSolver));
 
     // Initialize parameters: integrate using ForwardEulerSolver, swimmSpeed = $20 \frac{\mu m}{s}$
-    Kollmann2005Parameters bactParams;
+    Matthaeus2009Parameters bactParams;
     bactParams.odesolver = BactSolver;
     bactParams.interactions = ligandInteractions1;
     bactParams.swimmSpeed = 10;
 
     populations.push_back(shared_ptr<BacterialPopulation>(
-            new Kollmann2005Population("Population 1", simEnv, bactParams, 1000)
+            new Matthaeus2009Population("Population 1", simEnv, bactParams, 1000)
     ));
 
 

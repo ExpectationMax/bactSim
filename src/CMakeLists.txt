@@ -47,7 +47,7 @@ set(ENVIRONEMENTS
         Environments/Environment.h Environments/Environment.cpp
         Environments/ConstantEnvironment.h
         )
-set(BACTERIA BacterialPopulations/BacterialPopulation.cpp BacterialPopulations/SimplePopulation.cpp BacterialPopulations/Kollmann2005Population.cpp)
+set(BACTERIA BacterialPopulations/BacterialPopulation.cpp BacterialPopulations/SimplePopulation.cpp BacterialPopulations/Matthaeus2009Population.cpp)
 set(SOLVERS Solvers/Solver.cpp Solvers/RungeKuttaSolver.cpp Solvers/ForwardEulerSolver.cpp)
 set(MODELS Models/Model2D.h Models/Model2D.cpp )
 set(SOURCE ${GENERAL} ${ENVIRONEMENTS} ${BACTERIA} ${SOLVERS} ${MODELS})

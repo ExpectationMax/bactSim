@@ -10,11 +10,11 @@
 
 using namespace af;
 
-struct Kollmann2005Parameters : SimplePopulationParameters {
-    Kollmann2005Parameters() : SimplePopulationParameters() {};
-    Kollmann2005Parameters(shared_ptr<Solver> odesolver, std::vector<LigandInteraction> interactions, GPU_REALTYPE swimmSpeed):
+struct Matthaeus2009Parameters : SimplePopulationParameters {
+    Matthaeus2009Parameters() : SimplePopulationParameters() {};
+    Matthaeus2009Parameters(shared_ptr<Solver> odesolver, std::vector<LigandInteraction> interactions, GPU_REALTYPE swimmSpeed):
             SimplePopulationParameters(interactions, swimmSpeed), odesolver(odesolver) {};
-    Kollmann2005Parameters(SimplePopulationParameters paramsBase) {
+    Matthaeus2009Parameters(SimplePopulationParameters paramsBase) {
         interactions = paramsBase.interactions;
         swimmSpeed = paramsBase.swimmSpeed;
     }
@@ -27,6 +27,10 @@ struct Kollmann2005Parameters : SimplePopulationParameters {
     // Methylation dependent parameters
     std::vector<GPU_REALTYPE> T_Km {2.7, 20, 150, 1500, 60000}; // uM
     std::vector<GPU_REALTYPE> T_V {0, 0.25, 0.5, 0.75, 1};
+
+    std::vector<GPU_REALTYPE> T {4.06, 1.08, 0.14, 0.013, 0.007};
+
+    GPU_REALTYPE Tt = 5.3;
     GPU_REALTYPE T_H = 1.2;
 
     // Parameters for simulation of stochasticity
@@ -44,10 +48,14 @@ struct Kollmann2005Parameters : SimplePopulationParameters {
 
     // initial concentrations
     GPU_REALTYPE A_t = 5.3; // uM
+    GPU_REALTYPE Ap = 0.13; // uM
     GPU_REALTYPE B_t = 0.28; // uM
-    GPU_REALTYPE R_t = 0.08; // uM
+    GPU_REALTYPE Bp = 0.079; // uM
+
+    GPU_REALTYPE R_t = 0.16; // uM
     GPU_REALTYPE Y_t = 9.7; // uM
-    GPU_REALTYPE Z_t = 3.8; // uM
+    GPU_REALTYPE Yp = 2.7; // uM
+    GPU_REALTYPE Z_t = 4.25; // uM
 
     GPU_REALTYPE pwDivider = (0.2 * 1.53);
 
@@ -57,19 +65,20 @@ struct Kollmann2005Parameters : SimplePopulationParameters {
     GPU_REALTYPE kp_B = 3; // 1/(uM*s)
     GPU_REALTYPE k_A = 50; // 1/(uM*s)
     GPU_REALTYPE k_Y = 100; // 1/(uM*s)
-    GPU_REALTYPE k_Z = 30/Z_t; // To be divided by [CheZ] 1/s * [CheZ]
+//    GPU_REALTYPE k_Z = 30/Z_t; // To be divided by [CheZ] 1/s * [CheZ]
+    GPU_REALTYPE k_Z = 7.89; // To be divided by [CheZ] 1/s * [CheZ]
     GPU_REALTYPE g_B = 1; // 1/(uM*s)
     GPU_REALTYPE g_Y = 0.1; // 1/(uM*s)
 };
 
-class Kollmann2005Population : public SimplePopulation {
+class Matthaeus2009Population : public SimplePopulation {
 public:
-    Kollmann2005Population(std::string name, shared_ptr<Environment> Env, Kollmann2005Parameters parameters, int nBacteria);
-    Kollmann2005Population(std::string name, shared_ptr<Environment> env, Kollmann2005Parameters params) : SimplePopulation(name, env, params), params(params) {
+    Matthaeus2009Population(std::string name, shared_ptr<Environment> Env, Matthaeus2009Parameters parameters, int nBacteria);
+    Matthaeus2009Population(std::string name, shared_ptr<Environment> env, Matthaeus2009Parameters params) : SimplePopulation(name, env, params), Matthaeus2009Parameters(params) {
         init();
     }
 
-    Kollmann2005Population(shared_ptr<Environment> Env, H5::Group group);
+    Matthaeus2009Population(shared_ptr<Environment> Env, H5::Group group);
 
     // Simulation
     void liveTimestep(double dt) override;
@@ -81,7 +90,7 @@ public:
     bool save() override;
     void closeStorage() override;
 
-    REGISTER_DEC_TYPE(Kollmann2005Population);
+    REGISTER_DEC_TYPE(Matthaeus2009Population);
 protected:
     // Initialization
     void init();
@@ -91,7 +100,7 @@ protected:
     void move(double dt) override;
 
     // Parameters
-    Kollmann2005Parameters params;
+    Matthaeus2009Parameters params;
 
     // Additional Arrays
     array swimming;
@@ -130,39 +139,39 @@ protected:
 private:
     // Differential Equations
     class dTm : public DifferentialEquation {
-        Kollmann2005Population *p;
+        Matthaeus2009Population *p;
         int methylationLevel;
     public:
-        dTm(Kollmann2005Population *par, int methLevel): p(par), methylationLevel(methLevel) {}
+        dTm(Matthaeus2009Population *par, int methLevel): p(par), methylationLevel(methLevel) {}
         array rateofchange(array &input) override;
     };
 
     class dAp : public DifferentialEquation {
-        Kollmann2005Population *p;
+        Matthaeus2009Population *p;
     public:
-        dAp(Kollmann2005Population *par): p(par) {}
+        dAp(Matthaeus2009Population *par): p(par) {}
         array rateofchange(array &input) override;
     };
 
     class dYp : public DifferentialEquation {
-        Kollmann2005Population *p;
+        Matthaeus2009Population *p;
     public:
-        dYp(Kollmann2005Population *par): p(par) {}
+        dYp(Matthaeus2009Population *par): p(par) {}
         array rateofchange(array &input) override;
     };
 
     class dBp : public DifferentialEquation {
-        Kollmann2005Population *p;
+        Matthaeus2009Population *p;
     public:
-        dBp(Kollmann2005Population *par): p(par) {}
+        dBp(Matthaeus2009Population *par): p(par) {}
         array rateofchange(array &input) override;
     };
 
     // For simulation of stochasticity
     class dR : public DifferentialEquation {
-        Kollmann2005Population *p;
+        Matthaeus2009Population *p;
     public:
-        dR(Kollmann2005Population *par): p(par) {}
+        dR(Matthaeus2009Population *par): p(par) {}
         array rateofchange(array &input) override;
     };
 

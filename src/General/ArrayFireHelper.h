@@ -17,6 +17,8 @@ public:
     static array indexZAxis(array &A, array &indexes, array &z);
     static std::tuple<array, array, array> getOriginalIndexes(array &A, array &indexes);
     static array isUnique(array A);
+    static array gammaSampler(unsigned int n, int shape, double scale, double location);
+
 };
 
 

@@ -36,8 +36,8 @@ int main(int argc, char** argv)
     // Setup Environment
     EnvironmentSettings ESettings;
 
-    ESettings.resolution = 1;
-    ESettings.dimensions = std::vector<double> {1000, 1000};
+    ESettings.resolution = 10;
+    ESettings.dimensions = std::vector<double> {10000, 10000};
 
     BoundaryCondition boundaryCondition(BC_PERIODIC);
     boundaryCondition.xpos = 0;
@@ -46,13 +46,21 @@ int main(int argc, char** argv)
 
     int maxi = int(ceil(ESettings.dimensions[0]/ESettings.resolution));
     int maxj = int(ceil(ESettings.dimensions[1]/ESettings.resolution));
+    double size = 2000;
     std::cout << maxj << ' ' << maxj << std::endl;
 //     Initialize with gaussian
     GPU_REALTYPE initialValues[maxi*maxj];
     for(int i = 0; i < maxi; i++) {
         for(int j = 0; j < maxj; j++) {
 //            initialValues[i*maxi+j] = 0;
-            initialValues[i*maxi+j] = 100 * exp(-( (pow(i - maxi/2.0, 2)/(2*600/ESettings.resolution)) + (pow(j - maxj/2.0, 2)/(2*600/ESettings.resolution)) ));
+            initialValues[i*maxi+j] = 1000 *
+                    (
+                     exp(-( (pow(i - maxi/2.0, 2)/(2*size/ESettings.resolution)) + (pow(j - maxj/2.0, 2)/(2*size/ESettings.resolution)) ))
+                    + exp(-( (pow(i - maxi*0.25, 2)/(2*size/ESettings.resolution)) + (pow(j - maxj*0.25, 2)/(2*size/ESettings.resolution)) ))
+                    + exp(-( (pow(i - maxi*0.75, 2)/(2*size/ESettings.resolution)) + (pow(j - maxj*0.75, 2)/(2*size/ESettings.resolution)) ))
+                    + exp(-( (pow(i - maxi*0.25, 2)/(2*size/ESettings.resolution)) + (pow(j - maxj*0.75, 2)/(2*size/ESettings.resolution)) ))
+                    + exp(-( (pow(i - maxi*0.75, 2)/(2*size/ESettings.resolution)) + (pow(j - maxj*0.25, 2)/(2*size/ESettings.resolution)) ))
+                    );
         }
     }
 
@@ -76,7 +84,7 @@ int main(int argc, char** argv)
 
     std::vector<shared_ptr<BacterialPopulation>> populations;
 
-    shared_ptr<Solver> BactSolver(static_cast<Solver *>(new RungeKuttaSolver));
+    shared_ptr<Solver> BactSolver(static_cast<Solver *>(new ForwardEulerSolver));
 
     // Setup population 1
     std::vector<LigandInteraction> ligandInteractions1;
@@ -85,8 +93,8 @@ int main(int argc, char** argv)
     ligandInteractions1.push_back(interaction11);
 //    ligandInteractions1.push_back(interaction12);
 
-    Matthaeus2009Parameters bactParams = {BactSolver, ligandInteractions1, 20};
-    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Matthaeus2009Population("Population 1", simEnv, bactParams, 100))));
+    Matthaeus2009Parameters bactParams = {BactSolver, ligandInteractions1, 30};
+    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Matthaeus2009Population("Population 1", simEnv, bactParams, 500))));
 
 //    std::vector<LigandInteraction> ligandInteractions2;
 //    LigandInteraction interaction21 = {1,0.8, 0, 0, 0};
@@ -97,7 +105,7 @@ int main(int argc, char** argv)
 
     // Setup model
     Model2D mymodel(simEnv, populations, bactdt);
-    mymodel.setupStorage("gaussian2.h5", 20);
+    mymodel.setupStorage("gaussian_highres.h5", 50);
     mymodel.save();
 
 #ifndef NO_GRAPHICS
@@ -108,7 +116,7 @@ int main(int argc, char** argv)
 #endif
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
-    double simulationTime = 60;
+    double simulationTime = 500;
     double simulatedTime = mymodel.simulateFor(simulationTime, &continueSimulation);
     std::cout << "Simulated for " << simulatedTime << " of " << simulationTime << std::endl;
     mymodel.closeStorage();

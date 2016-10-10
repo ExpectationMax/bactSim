@@ -53,9 +53,12 @@ struct Matthaeus2009Parameters : SimplePopulationParameters {
     GPU_REALTYPE Bp = 0.079; // uM
 
     GPU_REALTYPE R_t = 0.16; // uM
+//    GPU_REALTYPE R_t = 0.08; // uM
+
     GPU_REALTYPE Y_t = 9.7; // uM
     GPU_REALTYPE Yp = 2.7; // uM
     GPU_REALTYPE Z_t = 4.25; // uM
+//    GPU_REALTYPE Z_t = 3.8; // uM
 
     GPU_REALTYPE pwDivider = (0.2 * 1.53);
 
@@ -74,7 +77,7 @@ struct Matthaeus2009Parameters : SimplePopulationParameters {
 class Matthaeus2009Population : public SimplePopulation {
 public:
     Matthaeus2009Population(std::string name, shared_ptr<Environment> Env, Matthaeus2009Parameters parameters, int nBacteria);
-    Matthaeus2009Population(std::string name, shared_ptr<Environment> env, Matthaeus2009Parameters params) : SimplePopulation(name, env, params), Matthaeus2009Parameters(params) {
+    Matthaeus2009Population(std::string name, shared_ptr<Environment> env, Matthaeus2009Parameters params) : SimplePopulation(name, env, params), params(params) {
         init();
     }
 

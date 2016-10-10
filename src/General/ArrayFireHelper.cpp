@@ -3,7 +3,7 @@
 //
 
 #include "ArrayFireHelper.h"
-
+#include "Types.h"
 array ArrayFireHelper::coordinateIndexing(array &A, array &x, array &y, array &z) {
     dim4 dim = A.dims();
     return dim[0]*dim[1]*z + dim[0]*y + x;
@@ -50,5 +50,13 @@ std::tuple<array, array, array> ArrayFireHelper::getOriginalIndexes(array &A, ar
     y = af::floor(zremain/dim[0]);
     x = mod(zremain, dim[0]);
     return std::make_tuple(x, y, z);
+}
+
+array ArrayFireHelper::gammaSampler(unsigned int n, int shape, double scale, double location) {
+    array x = constant(1.0, n, AF_GPUTYPE);
+    for(auto i = 0; i < shape; i++)
+        x *= randu(n, AF_GPUTYPE);
+    x = -log(x);
+    return scale*x + location;
 }
 

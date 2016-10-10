@@ -4,7 +4,8 @@
 
 #include "Matthaeus2009Population.h"
 #include "General/StorageHelper.h"
-#include <sstream>
+#include <General/ArrayFireHelper.h>
+
 /**
  * Extract parameters from parameter struct and store as GPU arrays for faster access
  */
@@ -151,10 +152,9 @@ Matthaeus2009Population::Matthaeus2009Population(std::string name, shared_ptr<En
         name, Env, parameters, nBacteria), params(parameters) {
     this->odesolver = params.odesolver;
     init();
-    printInternals();
 };
 
-REGISTER_DEF_TYPE(Kollmann2005Population)
+REGISTER_DEF_TYPE(Matthaeus2009Population)
 
 void Matthaeus2009Population::liveTimestep(double dt) {
     // Simulation
@@ -179,8 +179,8 @@ void Matthaeus2009Population::updateSwimming(double dt) {
 //    tau = exp(params.H_c * log(Yp)) / ( exp(params.H_c * log(Yp)) + exp(params.H_c * log(params.K_C)) );
 
     array newswimming = !(randu(size, AF_GPUTYPE) < tau);
-    // Change angle of swimming bacteria
-    angle = !subset*angle + subset*(swimming*angle + !swimming*randu(size, AF_GPUTYPE)*2*Pi);
+    // Change angle of swimming bacteria, directly calculate the angle in rad, 18.32 and -4.6 are the published values
+    angle = !subset*angle + subset*(swimming*angle + !swimming*(angle + ArrayFireHelper::gammaSampler(size, 4, 18.32/360*2*Pi, -4.6/360*2*Pi)));
 
     // Update swimming
     swimming = !subset*swimming + subset*newswimming;

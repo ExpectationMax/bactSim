@@ -53,11 +53,9 @@ std::tuple<array, array, array> ArrayFireHelper::getOriginalIndexes(array &A, ar
 }
 
 array ArrayFireHelper::gammaSampler(unsigned int n, int shape, double scale, double location) {
-    array x = constant(1.0, n, AF_GPUTYPE);
-    for(auto i = 0; i < shape; i++)
-        x *= randu(n, AF_GPUTYPE);
-    x = scale*-log(x); + location;
-    eval(x);
-    return x;
+    array x = randu(n, shape, AF_GPUTYPE);
+    array out = scale*-log(product(x, 1)) + location;
+    eval(out);
+    return out;
 }
 

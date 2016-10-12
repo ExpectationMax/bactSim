@@ -1,3 +1,7 @@
+/**
+ * Example3: Simulation of Matthäus 2009 population in constant environment with gaussians
+ */
+
 #include <csignal>
 #include <random>
 #include <arrayfire.h>
@@ -35,7 +39,6 @@ int main(int argc, char** argv)
 
     // Setup Environment
     EnvironmentSettings ESettings;
-    
     ESettings.resolution = 10;
     ESettings.dimensions = std::vector<double> {10000, 10000};
 
@@ -47,8 +50,7 @@ int main(int argc, char** argv)
     int maxi = int(ceil(ESettings.dimensions[0]/ESettings.resolution));
     int maxj = int(ceil(ESettings.dimensions[1]/ESettings.resolution));
     double size = 2000;
-    std::cout << maxj << ' ' << maxj << std::endl;
-//     Initialize with gaussian
+//  Initialize with gaussians
     GPU_REALTYPE *initialValues = new GPU_REALTYPE[maxi*maxj];
     for(int i = 0; i < maxi; i++) {
         for(int j = 0; j < maxj; j++) {
@@ -66,45 +68,30 @@ int main(int argc, char** argv)
     std::map<unsigned int, GPU_REALTYPE *> initLigands = {{0, initialValues}};
 
 
-    // Setup Ligands
+    // Dummy ligand properties, not relevant as constant environment does not regard them
     Ligand ligand1 = {"Food", 0, 0.0, 0.0, 0.0, 500.0};
     ESettings.ligands.push_back(ligand1);
-//    Ligand ligand2 = {"Attractor", 1,  5, 0.0, 0.5, 500.0};
-//    ESettings.ligands.push_back(ligand2);
-
-
-//    shared_ptr<Environment> simEnv(new ConstantEnvironment(initLigands, ESettings));
     shared_ptr<Environment> simEnv(new ConstantEnvironment(initLigands, ESettings));
     delete[] initialValues;
     GPU_REALTYPE bactdt = 0.01;
 
-    // Update randomness
     af::setSeed(time(NULL));
-
     std::vector<shared_ptr<BacterialPopulation>> populations;
 
     shared_ptr<Solver> BactSolver(static_cast<Solver *>(new ForwardEulerSolver));
 
     // Setup population 1
     std::vector<LigandInteraction> ligandInteractions1;
+    // Dummy interaction, currently populations without interactions are not supported
     LigandInteraction interaction11 = {0, 0, 0, 5.0, 0, 0};
-//    LigandInteraction interaction12 = {1,   0, 0, 0, 0};
     ligandInteractions1.push_back(interaction11);
-//    ligandInteractions1.push_back(interaction12);
 
     Matthaeus2009Parameters bactParams = {BactSolver, ligandInteractions1, 30};
     populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Matthaeus2009Population("Population 1", simEnv, bactParams, 500))));
 
-//    std::vector<LigandInteraction> ligandInteractions2;
-//    LigandInteraction interaction21 = {1,0.8, 0, 0, 0};
-//    ligandInteractions2.push_back(interaction21);
-
-//    Matthaeus2009Parameters bactParams2 = {BactSolver, ligandInteractions2, bactdt, 5};
-//    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Matthaeus2009Population("Population 2", simEnv, bactParams2, 20))));
-
     // Setup model
     Model2D mymodel(simEnv, populations, bactdt);
-    mymodel.setupStorage("gaussian_highres.h5", 50);
+    mymodel.setupStorage("Example3.h5", 50);
     mymodel.save();
 
 #ifndef NO_GRAPHICS
@@ -115,7 +102,7 @@ int main(int argc, char** argv)
 #endif
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
-    double simulationTime = atof(argv[1]);
+    double simulationTime = 1200;
     double simulatedTime = mymodel.simulateFor(simulationTime, &continueSimulation);
     std::cout << "Simulated for " << simulatedTime << " of " << simulationTime << std::endl;
     mymodel.closeStorage();

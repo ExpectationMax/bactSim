@@ -53,6 +53,7 @@ std::tuple<array, array, array> ArrayFireHelper::getOriginalIndexes(array &A, ar
 }
 
 array ArrayFireHelper::gammaSampler(unsigned int n, int shape, double scale, double location) {
+    // Generate gamma distribution as sum of exponentials, this works for shape parameters less than 6
     array x = randu(n, shape, AF_GPUTYPE);
     array out = scale*-log(product(x, 1)) + location;
     eval(out);

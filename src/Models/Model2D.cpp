@@ -164,9 +164,9 @@ GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t, bool *continueSim) {
         if (i && !(i % 100)) {
             af::sync();
             double seconds = difftime(time(NULL), start);
-            std::cout << 100 / seconds << " iterations per second" << std::endl;
-            std::cout << "Simulated " << i * Modeldt << "/" << iterations * Modeldt << std::endl;
-            std::cout << "ETA: " << (iterations - i) / (60 * (100 / seconds)) << " min" << std::endl;
+            std::cout << 100 / seconds << " iterations per second ("
+                      << i * Modeldt << "/" << iterations * Modeldt
+                      << ") ETA: " << (iterations - i) / (60 * (100 / seconds)) << " min \r";
             time(&start);
 //            bacterialPopulations[0]->printInternals();
         }
@@ -176,6 +176,7 @@ GPU_REALTYPE Model2D::simulateFor(GPU_REALTYPE t, bool *continueSim) {
 #endif
     }
     double seconds_since_start = difftime(time(NULL), gtime);
+    std::cout << std::endl;
     std::cout << "Average speed: " << (i-1)*Modeldt/seconds_since_start << " modeltime/s" << std::endl;
     return (i-1)*Modeldt;
 }

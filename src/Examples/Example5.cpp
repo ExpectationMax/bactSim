@@ -1,5 +1,5 @@
 /**
- * Example4: Simulation of Matthäus 2009 population producing chemoattractant
+ * Example5: Simulation of Matthäus 2009 population and Simple population within the same environment
  */
 
 #include <csignal>
@@ -48,8 +48,11 @@ int main(int argc, char** argv)
     ESettings.boundaryCondition = boundaryCondition;
 
     // Dummy ligand properties, not relevant as constant environment does not regard them
-    Ligand ligand1 = {"Attractor", 0, 0.0, 0.0, 0.05, 500.0};
+    Ligand ligand1 = {"Attractor 1", 0, 0.0, 0.0, 0.0, 200.0};
+    Ligand ligand2 = {"Attractor 2", 1, 0.0, 0.0, 0.0, 200.0};
+
     ESettings.ligands.push_back(ligand1);
+    ESettings.ligands.push_back(ligand2);
     shared_ptr<Environment> simEnv(new Environment(ESettings));
     GPU_REALTYPE bactdt = 0.01;
 
@@ -60,16 +63,24 @@ int main(int argc, char** argv)
 
     // Setup population 1
     std::vector<LigandInteraction> ligandInteractions1;
-    // Dummy interaction, currently populations without interactions are not supported
     LigandInteraction interaction11 = {0, 50, 0, 5.0, 0, 0};
+    LigandInteraction interaction12 = {1, 0.0, 0.5, 5.0, 0, 0};
     ligandInteractions1.push_back(interaction11);
+    ligandInteractions1.push_back(interaction12);
 
     Matthaeus2009Parameters bactParams = {BactSolver, ligandInteractions1, 30};
-    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Matthaeus2009Population("Population 1", simEnv, bactParams, 5000))));
+    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Matthaeus2009Population("Population 1", simEnv, bactParams, 500))));
 
+    std::vector<LigandInteraction> ligandInteractions2;
+    LigandInteraction interaction21 = {1, 50, 0, 5.0, 0, 0};
+    LigandInteraction interaction22 = {0, 0.0, 0.5, 5.0, 0, 0};
+    ligandInteractions2.push_back(interaction21);
+    ligandInteractions2.push_back(interaction22);
+    Matthaeus2009Parameters bactParams2 = {BactSolver, ligandInteractions2, 30};
+    populations.push_back(shared_ptr<BacterialPopulation>(static_cast<BacterialPopulation *>(new Matthaeus2009Population("Population 2", simEnv, bactParams2, 500))));
     // Setup model
     Model2D mymodel(simEnv, populations, bactdt);
-    mymodel.setupStorage("Example4.h5", 200);
+    mymodel.setupStorage("Example5.h5",200);
     mymodel.save();
 
 #ifndef NO_GRAPHICS
@@ -80,7 +91,7 @@ int main(int argc, char** argv)
 #endif
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
-    double simulationTime = 2400;
+    double simulationTime = 1200;
     double simulatedTime = mymodel.simulateFor(simulationTime, &continueSimulation);
     std::cout << "Simulated for " << simulatedTime << " of " << simulationTime << std::endl;
     mymodel.closeStorage();

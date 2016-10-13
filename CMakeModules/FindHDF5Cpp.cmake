@@ -3,11 +3,9 @@ find_package(PkgConfig)
 find_path(LIBHDF5_INCLUDE_DIR H5Cpp.h
         HINTS /usr/local/include)
 
-find_library(LIBHDF5Cpp_LIBRARY NAMES hdf5_cpp
-        PATHS /usr/local/lib NO_DEFAULT_PATH)
+find_library(LIBHDF5Cpp_LIBRARY NAMES hdf5_cpp)
 
-find_library(LIBHDF5_LIBRARY NAMES hdf5
-        PATHS /usr/local/lib NO_DEFAULT_PATH)
+find_library(LIBHDF5_LIBRARY NAMES hdf5)
 
 
 include(FindPackageHandleStandardArgs)

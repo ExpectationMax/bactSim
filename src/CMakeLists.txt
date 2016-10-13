@@ -60,16 +60,12 @@ set(SOURCE ${GENERAL} ${ENVIRONEMENTS} ${BACTERIA} ${SOLVERS} ${MODELS})
 # files into a CMake object library and then link this library against the
 # different ArrayFire backends.
 ADD_LIBRARY(LIB OBJECT ${SOURCE})
-ADD_LIBRARY(AF_CREATE OBJECT create.cpp)
 ADD_LIBRARY(AF_SIMULATE OBJECT simulate.cpp)
 
 # Build the program, linking specifically with designated backends
 # ArrayFire CPU backend
 if(${ArrayFire_CPU_FOUND})
     MESSAGE(STATUS "ArrayFire CPU backend found. Enabling CPU benchmark")
-    ADD_EXECUTABLE(create-cpu $<TARGET_OBJECTS:AF_CREATE> $<TARGET_OBJECTS:LIB>)
-    TARGET_LINK_LIBRARIES(create-cpu ${LIBHDF5_LIBRARIES} ${ArrayFire_CPU_LIBRARIES}
-        ${CMAKE_THREAD_LIBS_INIT})
     ADD_EXECUTABLE(simulate-cpu $<TARGET_OBJECTS:AF_SIMULATE> $<TARGET_OBJECTS:LIB>)
     TARGET_LINK_LIBRARIES(simulate-cpu ${LIBHDF5_LIBRARIES} ${ArrayFire_CPU_LIBRARIES}
             ${CMAKE_THREAD_LIBS_INIT})
@@ -80,9 +76,6 @@ FIND_PACKAGE(OpenCL)
 IF(${ArrayFire_OpenCL_FOUND} AND ${OpenCL_FOUND})
     # We need to find OpenCL as transitive linking is disabled on some OSes
     MESSAGE(STATUS "ArrayFire OpenCL backend found. Enabling OpenCL benchmark")
-    ADD_EXECUTABLE(create-opencl $<TARGET_OBJECTS:AF_CREATE> $<TARGET_OBJECTS:LIB>)
-    TARGET_LINK_LIBRARIES(create-opencl ${LIBHDF5_LIBRARIES} ${ArrayFire_OpenCL_LIBRARIES}
-        ${OpenCL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
     ADD_EXECUTABLE(simulate-opencl $<TARGET_OBJECTS:AF_SIMULATE> $<TARGET_OBJECTS:LIB>)
     TARGET_LINK_LIBRARIES(simulate-opencl ${LIBHDF5_LIBRARIES} ${ArrayFire_OpenCL_LIBRARIES}
             ${OpenCL_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} )
@@ -96,9 +89,6 @@ IF(${ArrayFire_CUDA_FOUND} AND ${CUDA_FOUND})
     FIND_PACKAGE(NVVM REQUIRED)
     MESSAGE(STATUS ${CUDA_TOOLKIT_ROOT_DIR})
     MESSAGE(STATUS "ArrayFire CUDA found. Enabling CUDA benchmark")
-    ADD_EXECUTABLE(create-cuda $<TARGET_OBJECTS:AF_CREATE> $<TARGET_OBJECTS:LIB>)
-    TARGET_LINK_LIBRARIES(create-cuda ${LIBHDF5_LIBRARIES} ${ArrayFire_CUDA_LIBRARIES}
-        ${CMAKE_THREAD_LIBS_INIT} ${CUDA_LIBRARIES} ${NVVM_LIB})
     ADD_EXECUTABLE(simulate-cuda $<TARGET_OBJECTS:AF_SIMULATE> $<TARGET_OBJECTS:LIB>)
     TARGET_LINK_LIBRARIES(simulate-cuda ${LIBHDF5_LIBRARIES} ${ArrayFire_CUDA_LIBRARIES}
             ${CMAKE_THREAD_LIBS_INIT} ${CUDA_LIBRARIES} ${NVVM_LIB})
